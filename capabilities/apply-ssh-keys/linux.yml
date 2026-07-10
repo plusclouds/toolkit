@@ -1,0 +1,53 @@
+---
+- name: Ensure ssh_keys is defined and not empty
+  fail:
+    msg: "ssh_keys is not defined"
+  when: ssh_keys is not defined or ssh_keys | length == 0
+
+- name: Ensure .ssh directory exists for vm_user
+  file:
+    path: "/home/{{ vm_user }}/.ssh"
+    state: directory
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user }}"
+    mode: '0700'
+
+- name: Ensure authorized_keys file exists for vm_user
+  file:
+    path: "/home/{{ vm_user }}/.ssh/authorized_keys"
+    state: touch
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user }}"
+    mode: '0600'
+
+- name: Apply SSH public keys for vm_user
+  lineinfile:
+    path: "/home/{{ vm_user }}/.ssh/authorized_keys"
+    line: "{{ item.public_key }}"
+    state: present
+  loop: "{{ ssh_keys }}"
+  when: item.public_key is defined and item.public_key | length > 0
+
+- name: Ensure .ssh directory exists for root
+  file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Ensure authorized_keys file exists for root
+  file:
+    path: /root/.ssh/authorized_keys
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Apply SSH public keys for root
+  lineinfile:
+    path: /root/.ssh/authorized_keys
+    line: "{{ item.public_key }}"
+    state: present
+  loop: "{{ ssh_keys }}"
+  when: item.public_key is defined and item.public_key | length > 0

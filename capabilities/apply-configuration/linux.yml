@@ -1,0 +1,76 @@
+---
+- name: Get VM Metadata from local JSON file
+  hosts: all
+  vars:
+    metadata_file: "{{ playbook_dir }}/pc-meta-data.json"
+
+  tasks:
+    - name: Load metadata from local JSON file
+      set_fact:
+        metadata: "{{ lookup('file', metadata_file) | from_json }}"
+
+    - name: Show metadata content
+      debug:
+        var: metadata
+
+    - name: Extract values from metadata
+      set_fact:
+        vm_user: "{{ metadata.username }}"
+        vm_password: "{{ metadata.password }}"
+
+    - name: Apply password configuration
+      include_tasks: change-password.yml
+
+    - name: Extract values for hostname configuration
+      set_fact:
+        hostname: "{{ metadata.hostname | default('default-hostname') }}"
+
+    - name: Apply hostname configuration
+      include_tasks: change-hostname.yml
+
+    - name: Enlarge disk
+      include_tasks: disk-resize-ubuntu22.yml
+      when:
+        - ansible_facts.distribution == "Ubuntu"
+        - ansible_facts.distribution_version == "22.04"
+
+    - name: Enlarge disk
+      include_tasks: disk-resize-ubuntu24.yml
+      when:
+        - ansible_facts.distribution == "Ubuntu"
+        - ansible_facts.distribution_version == "24.04"
+
+    - name: Enlarge disk
+      include_tasks: disk-resize-debian12.yml
+      when:
+        - ansible_facts.distribution == "Debian"
+
+    - name: Enlarge disk
+      include_tasks: disk-resize-alma.yml
+      when:
+        - ansible_facts.distribution == "AlmaLinux"
+
+    - name: Extract environment variables
+      set_fact:
+        env_vars: "{{ metadata.env_vars | default({}) }}"
+
+    - name: Apply environment variables
+      include_tasks: apply-env-vars.yml
+      when: metadata.env_vars is defined and metadata.env_vars | length > 0
+
+    - name: Extract SSH keys
+      set_fact:
+        ssh_keys: "{{ metadata.ssh_keys | default([]) }}"
+
+    - name: Apply SSH keys
+      include_tasks: apply-ssh-keys.yml
+      when: metadata.ssh_keys is defined and metadata.ssh_keys | length > 0
+
+    - name: Deploy service configuration
+      include_tasks: deploy-service.yml
+
+    - name: Run post boot script
+      include_tasks: run-post-boot-script.yml
+
+    - name: Run image startup script
+      include_tasks: run-startup-script.yml

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install linters
+        run: |
+          pip install --user ansible-lint
+          sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: shellcheck (bash capabilities/agents)
+        run: |
+          find capabilities agents -name '*.sh' -print0 | xargs -0 --no-run-if-empty shellcheck
+
+      - name: ansible-lint (playbook capabilities)
+        run: |
+          find capabilities agents -name '*.yml' -print0 | xargs -0 --no-run-if-empty ~/.local/bin/ansible-lint
+
+      - name: PSScriptAnalyzer (PowerShell capabilities)
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          $files = Get-ChildItem -Recurse -Include *.ps1 -Path capabilities,agents
+          $failed = $false
+          foreach ($f in $files) {
+            $results = Invoke-ScriptAnalyzer -Path $f.FullName -Severity Error
+            if ($results) { $results | Format-Table; $failed = $true }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Verify manifest is up to date
+        run: |
+          cp manifest.json /tmp/manifest.before.json || true
+          ./scripts/generate-manifest.sh
+          diff /tmp/manifest.before.json manifest.json || (echo "manifest.json is stale — run scripts/generate-manifest.sh and commit it" && exit 1)
