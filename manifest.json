@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-10T21:09:49Z",
+  "generated_at": "2026-07-10T21:44:09Z",
   "files": {
     "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
