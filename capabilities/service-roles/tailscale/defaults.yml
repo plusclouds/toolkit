@@ -1,0 +1,4 @@
+auth_key: ""
+hostname: ""
+advertise_routes: ""
+ephemeral: false
