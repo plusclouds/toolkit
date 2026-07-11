@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-11T18:12:12Z",
+  "generated_at": "2026-07-11T19:02:29Z",
   "files": {
     "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
@@ -32,8 +32,11 @@
     "capabilities/run-post-boot-script/linux.yml": {"sha256": "bdda80eb15d47f39149893f97e4b5b43cad4c65765d7a06bae45d63dbdb2b86b", "size": 529},
     "capabilities/run-startup-script/linux.yml": {"sha256": "4b0142c3043cc613dfaef4effbe355549ea434ec6533d004d8ffeafc31802d7b", "size": 709},
     "capabilities/service-roles/mysql/linux.yml": {"sha256": "d4389020d675ef5592179bc789b14ccd49dfbcd34322f572f6d333c84340e18c", "size": 1612},
+    "capabilities/service-roles/mysql/meta.yml": {"sha256": "e4f6d3fd9996db296c026a36c1de67592e8d8c1cb3f847fac7ed52b63bdc6d0b", "size": 122},
     "capabilities/service-roles/postgresql/linux.yml": {"sha256": "6a0a913eace7f50c5ed73ca3d7c94e717261e6d7805ce6f7092d2c1c88f48b08", "size": 1851},
+    "capabilities/service-roles/postgresql/meta.yml": {"sha256": "c69acace21ab209b69e955d87b11590f3c10d108800ada2607de61527b77bbaf", "size": 135},
     "capabilities/service-roles/tailscale/linux.yml": {"sha256": "f81995a5c914f07b2dcaed90101b8a1fe4feeb7e5ccebd09912c07cc1548102f", "size": 2151},
+    "capabilities/service-roles/tailscale/meta.yml": {"sha256": "07c3dccc066398462e1a346fb1db71074da03e4c19b0354ce85117bdecc2fc7e", "size": 123},
     "capabilities/update/linux.yml": {"sha256": "0e8e383a33ca644a525c34559831f14d6e2ccdb3246bb3ab36784a6354093fed", "size": 1177},
     "capabilities/zabbix-client/linux.yml": {"sha256": "edccdb1e76f6de2183a3730255d1297b518adb79a1703a53ee7801e4dc6117da", "size": 1309}
   }

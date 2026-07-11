@@ -1,0 +1,1 @@
+description: "Installs and enables a MySQL server via the guest's package manager, optionally setting the root password."

@@ -1,0 +1,1 @@
+description: "Installs and enables Tailscale, optionally joining your tailnet automatically when an auth key is provided."

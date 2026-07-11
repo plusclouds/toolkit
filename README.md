@@ -5,6 +5,8 @@ Shared, versioned repository of cross-platform automation scripts used across Pl
 ## Layout
 
 - `capabilities/<name>/{linux.yml, windows.ps1, macos.sh}` — the actual guest-facing operations (change password, change hostname, apply SSH keys, disk resize, etc.), one directory per capability, OS variants side by side so they get reviewed and versioned together instead of drifting apart.
+- `capabilities/service-roles/<name>/linux.yml` — service roles (mysql, postgresql, tailscale, ...) a VM can opt into. Each directory's name is the catalog key `NextDeveloper/IAAS`'s `iaas_ansible_roles` table syncs against 1:1 — see `meta.yml` below and `AnsibleRolesService::syncFromToolkit()`.
+- `capabilities/service-roles/<name>/meta.yml` — a one-line `description:` for that role, synced into `iaas_ansible_roles.description` by the same job. Required for every service role (not just cosmetic — the sync job reads it).
 - `agents/<agent>/` — bootstrap/installer material for a specific agent (install scripts, systemd units, config templates). Not a "capability" a customer triggers directly — this is what gets an agent running on a host in the first place.
 - `manifest.json` — generated at release time by `scripts/generate-manifest.sh`: every file's sha256, so consumers can verify integrity before executing anything pulled from a release asset.
 

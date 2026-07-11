@@ -1,0 +1,1 @@
+description: "Installs and configures a PostgreSQL server via the guest's package manager, optionally setting the superuser password."
