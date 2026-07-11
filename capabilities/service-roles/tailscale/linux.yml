@@ -1,0 +1,52 @@
+---
+- name: Set Tailscale role defaults
+  set_fact:
+    tailscale_auth_key: "{{ service_roles.tailscale.config.auth_key | default('') }}"
+    tailscale_hostname: "{{ service_roles.tailscale.config.hostname | default('') }}"
+    tailscale_advertise_routes: "{{ service_roles.tailscale.config.advertise_routes | default('') }}"
+    tailscale_ephemeral: "{{ service_roles.tailscale.config.ephemeral | default(false) }}"
+
+- name: Check if Tailscale is already installed
+  command: which tailscale
+  register: tailscale_installed
+  changed_when: false
+  failed_when: false
+
+# No apt/dnf package covers every supported distro consistently, so this uses
+# Tailscale's own official installer, which detects the distro itself.
+- name: Install Tailscale via the official install script
+  shell: curl -fsSL https://tailscale.com/install.sh | sh
+  when: tailscale_installed.rc != 0
+
+- name: Enable and start tailscaled service
+  systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Build tailscale up arguments
+  set_fact:
+    tailscale_up_args: >-
+      {{
+        ['--authkey=' + tailscale_auth_key]
+        + (['--hostname=' + tailscale_hostname] if tailscale_hostname | length > 0 else [])
+        + (['--advertise-routes=' + tailscale_advertise_routes] if tailscale_advertise_routes | length > 0 else [])
+        + (['--ephemeral'] if tailscale_ephemeral | bool else [])
+      }}
+  when: tailscale_auth_key | length > 0
+
+# Without an auth_key, `tailscale up` needs an interactive browser login,
+# which can't happen during an unattended first boot - so this only joins
+# the tailnet automatically when an auth_key was provided in the role config.
+- name: Join the tailnet
+  command:
+    argv: "{{ ['tailscale', 'up'] + tailscale_up_args }}"
+  when: tailscale_auth_key | length > 0
+  changed_when: true
+
+- name: Debug - Tailscale status
+  debug:
+    msg: >-
+      {{ 'Tailscale joined the tailnet using the provided auth key.'
+          if tailscale_auth_key | length > 0
+          else 'Tailscale installed and running, but not joined to a tailnet - no auth_key was provided in config. Run `tailscale up` manually to authenticate.' }}

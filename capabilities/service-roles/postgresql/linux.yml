@@ -1,0 +1,60 @@
+---
+- name: Set PostgreSQL role defaults
+  set_fact:
+    postgresql_password: "{{ service_roles.postgresql.config.password | default('') }}"
+
+- name: Install PostgreSQL server (Debian family)
+  apt:
+    name: postgresql
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install PostgreSQL server (RedHat family)
+  dnf:
+    name:
+      - postgresql-server
+      - postgresql-contrib
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# RedHat family (unlike Debian's apt postinst) doesn't initialize the data
+# directory on install - postgresql-setup --initdb has to be run once, and
+# running it again on an already-initialized cluster fails, so guard on
+# PG_VERSION existing.
+- name: Check if PostgreSQL data directory is initialized (RedHat family)
+  stat:
+    path: /var/lib/pgsql/data/PG_VERSION
+  register: pg_data_dir
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Initialize PostgreSQL database (RedHat family)
+  command: postgresql-setup --initdb
+  when:
+    - ansible_facts.os_family == "RedHat"
+    - not pg_data_dir.stat.exists
+
+- name: Enable and start PostgreSQL service
+  systemd:
+    name: postgresql
+    enabled: true
+    state: started
+
+# PostgreSQL only accepts local connections via the `postgres` OS user by
+# default (peer/ident auth), so this has to run as that user even though the
+# rest of this playbook runs as root.
+- name: Set PostgreSQL superuser password
+  become: true
+  become_user: postgres
+  command:
+    argv:
+      - psql
+      - -c
+      - "ALTER USER postgres WITH PASSWORD '{{ postgresql_password }}';"
+  when: postgresql_password | length > 0
+  changed_when: true
+  no_log: true
+
+- name: Debug - PostgreSQL installed
+  debug:
+    msg: "PostgreSQL installed and running{{ ' (postgres password set)' if postgresql_password | length > 0 else '' }}"

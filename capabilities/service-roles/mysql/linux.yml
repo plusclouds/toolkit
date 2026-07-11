@@ -1,0 +1,49 @@
+---
+- name: Set MySQL role defaults
+  set_fact:
+    mysql_root_password: "{{ service_roles.mysql.config.root_password | default('') }}"
+
+- name: Install MySQL server (Debian family)
+  apt:
+    name: mysql-server
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install MySQL server (RedHat family)
+  dnf:
+    name: mysql-server
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# Package name is the same on both families, but the systemd unit isn't -
+# Debian/Ubuntu's mysql-server package ships the `mysql` unit, RedHat/AlmaLinux's ships `mysqld`.
+- name: Determine MySQL service name
+  set_fact:
+    mysql_service_name: "{{ 'mysqld' if ansible_facts.os_family == 'RedHat' else 'mysql' }}"
+
+- name: Enable and start MySQL service
+  systemd:
+    name: "{{ mysql_service_name }}"
+    enabled: true
+    state: started
+
+# Fresh installs authenticate root via the unix socket (auth_socket/unix_socket
+# plugin), so this connects without a password the first time it runs, then
+# keeps the password in sync on every subsequent boot - same idempotent-by-
+# re-application approach as capabilities/change-password/linux.yml.
+- name: Set MySQL root password
+  command:
+    argv:
+      - mysql
+      - -u
+      - root
+      - -e
+      - "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
+  when: mysql_root_password | length > 0
+  changed_when: true
+  no_log: true
+
+- name: Debug - MySQL installed
+  debug:
+    msg: "MySQL installed and running{{ ' (root password set)' if mysql_root_password | length > 0 else '' }}"
