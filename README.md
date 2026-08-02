@@ -11,6 +11,41 @@ Shared, versioned repository of cross-platform automation scripts used across Pl
 - `agents/<agent>/` — bootstrap/installer material for a specific agent (install scripts, systemd units, config templates). Not a "capability" a customer triggers directly — this is what gets an agent running on a host in the first place.
 - `manifest.json` — generated at release time by `scripts/generate-manifest.sh`: every file's sha256, so consumers can verify integrity before executing anything pulled from a release asset.
 
+## Capabilities
+
+Guest-facing operations, triggered directly against a running VM.
+
+| Capability | Linux | Windows | What it does |
+| --- | :---: | :---: | --- |
+| `change-password` | ✅ | ✅ | Sets a local user's password, creating the account first if it doesn't exist. |
+| `change-hostname` | ✅ | ✅ | Sets the guest's hostname. |
+| `apply-ssh-keys` | ✅ | ✅ | Installs authorized SSH public keys for a user. |
+| `apply-env-vars` | ✅ | ✅ | Writes system-wide environment variables. |
+| `apply-locale` | ✅ | — | Installs and activates the `en_US.UTF-8` locale (Debian family). |
+| `apply-configuration` | ✅ | ✅ | First-boot orchestrator: reads `pc-meta-data.json` and drives password, hostname, disk-resize, env vars, SSH keys, service deployment, and startup/post-boot scripts in one pass. |
+| `disk-resize` | ✅ | — | Grows the root filesystem to fill the disk. Per-distro playbooks: Ubuntu 22.04/24.04, Debian 12, AlmaLinux. |
+| `run-post-boot-script` / `run-startup-script` | ✅ | — | Runs a customer-supplied script once at first boot / on every boot. |
+| `update` | ✅ | — | Updates all OS packages (Ubuntu, Debian, Fedora, CentOS, AlmaLinux, RedHat), with an optional reboot. |
+| `client-monitoring` / `zabbix-client` | ✅ | — | Bootstraps the Zabbix agent with auto-registration. |
+
+## Service roles
+
+Optional daemons a VM can opt into via `service_roles.<name>.config` — see `capabilities/service-roles/<name>/defaults.yml` for each role's config keys. All Linux-only.
+
+| Role | Description | Supported OS |
+| --- | --- | --- |
+| `mysql` | Installs and enables MySQL, optionally setting the root password. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `mariadb` | Installs and enables MariaDB, optionally setting the root password. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `postgresql` | Installs and configures PostgreSQL, optionally setting the superuser password. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `redis` | Installs and enables Redis, optionally setting a password and binding to all interfaces. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `nginx` | Installs and enables Nginx, optionally setting the default site's `server_name`. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `caddy` | Installs Caddy from its official repo, optionally configuring a domain with automatic HTTPS and a reverse-proxy target. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `traefik` | Installs Traefik as a systemd service from its official release binary, optionally enabling the dashboard and Let's Encrypt via ACME. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `docker` | Installs Docker Engine from its official repo, optionally adding users to the `docker` group. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `tailscale` | Installs Tailscale, optionally joining your tailnet automatically when an auth key is provided. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `fail2ban` | Installs and enables Fail2ban, optionally overriding the default ban time and retry threshold. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `ufw` | Installs and enables UFW, applying default incoming/outgoing policies and a port allowlist before enabling. | Ubuntu 22.04/24.04, Debian 12 (not packaged for RedHat family) |
+
 ## Consuming this repo
 
 Never fetch from a branch (`main`/`master`) at runtime. Pin to a release tag:
