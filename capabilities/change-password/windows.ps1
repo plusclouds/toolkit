@@ -1,4 +1,7 @@
 #Requires -RunAsAdministrator
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidUsingConvertToSecureStringWithPlainText', '',
+    Justification = 'Password arrives as plaintext from provisioning metadata; Set-LocalUser/New-LocalUser require a SecureString.')]
 param(
     [Parameter(Mandatory)][string]$Username,
     [Parameter(Mandatory)][string]$Password

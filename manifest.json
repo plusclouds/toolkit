@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-02T08:45:39Z",
+  "generated_at": "2026-08-02T08:47:55Z",
   "files": {
     "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
@@ -23,7 +23,7 @@
     "capabilities/change-hostname/linux.yml": {"sha256": "6f61a0399cd67e44874c9839758e5ee7deeff24b60cb40c7676a61809ddcd9d3", "size": 834},
     "capabilities/change-hostname/windows.ps1": {"sha256": "75dda19de2c8b190e20fa0f2ded9f1ce11a313873e8378bf24d6e7d2f6b67a47", "size": 397},
     "capabilities/change-password/linux.yml": {"sha256": "210db89921963f7518a3027c3c68572ad051bf5a1def9dd8b200927b65383b6b", "size": 1368},
-    "capabilities/change-password/windows.ps1": {"sha256": "9926294ec557eb472c4d868151bbbd34fdcef2125e1d9c45b62ff3b370c21ced", "size": 666},
+    "capabilities/change-password/windows.ps1": {"sha256": "ac680875cd4447920014191bf295e090977ad86b37d3b7ca99bbb1aa2f30596f", "size": 910},
     "capabilities/client-monitoring/linux.sh": {"sha256": "a68dfdf6082e1033679dbfed431c73f9ef1e8ebba00eff543b5d2b7daf0f8464", "size": 2405},
     "capabilities/disk-resize/alma.yml": {"sha256": "6c3d98b6ea2aa8e860f190891b36c7ca4eccf4f11f0a072ba4a4a7db932da720", "size": 3191},
     "capabilities/disk-resize/debian12.yml": {"sha256": "42565e4526f5ab7f84d05a47da817723e6e93da609b77883f540196fb665e813", "size": 3028},
