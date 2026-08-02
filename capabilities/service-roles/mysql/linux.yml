@@ -32,6 +32,11 @@
 # plugin), so this connects without a password the first time it runs, then
 # keeps the password in sync on every subsequent boot - same idempotent-by-
 # re-application approach as capabilities/change-password/linux.yml.
+#
+# IDENTIFIED WITH caching_sha2_password is required here (not plain
+# IDENTIFIED BY): without it, ALTER USER only updates the password hash and
+# leaves the account on auth_socket, which ignores passwords entirely for
+# local connections - so the configured password would never actually work.
 - name: Set MySQL root password
   command:
     argv:
@@ -39,7 +44,7 @@
       - -u
       - root
       - -e
-      - "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
+      - "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
   when: mysql_root_password | length > 0
   changed_when: true
   no_log: true
