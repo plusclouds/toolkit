@@ -1,1 +1,6 @@
 description: "Installs and enables a MySQL server via the guest's package manager, optionally setting the root password."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"
