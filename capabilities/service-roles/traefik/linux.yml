@@ -1,0 +1,131 @@
+---
+# No apt/dnf package covers every supported distro consistently, so this
+# installs the official GitHub release binary directly, same approach as
+# capabilities/service-roles/tailscale/linux.yml uses for its installer.
+- name: Set Traefik role defaults
+  set_fact:
+    traefik_version: "{{ service_roles.traefik.config.version | default('3.1.0') }}"
+    traefik_dashboard_enabled: "{{ service_roles.traefik.config.dashboard_enabled | default(false) }}"
+    traefik_acme_email: "{{ service_roles.traefik.config.acme_email | default('') }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    traefik_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Check if Traefik binary is already installed
+  stat:
+    path: /usr/local/bin/traefik
+  register: traefik_binary
+
+- name: Download and extract Traefik binary
+  unarchive:
+    src: "https://github.com/traefik/traefik/releases/download/v{{ traefik_version }}/traefik_v{{ traefik_version }}_linux_{{ traefik_arch }}.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    include: traefik
+    mode: "0755"
+  when: not traefik_binary.stat.exists
+
+- name: Create traefik system group
+  group:
+    name: traefik
+    system: true
+    state: present
+
+- name: Create traefik system user
+  user:
+    name: traefik
+    group: traefik
+    system: true
+    shell: /usr/sbin/nologin
+    home: /etc/traefik
+    create_home: false
+    state: present
+
+- name: Create Traefik config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: traefik
+    group: traefik
+    mode: "0755"
+  loop:
+    - /etc/traefik
+    - /etc/traefik/dynamic
+
+# websecure/api are always defined so the static config stays valid YAML
+# regardless of whether ACME or the dashboard are enabled; api.insecure
+# only matters when dashboard_enabled is true.
+- name: Configure Traefik static configuration
+  copy:
+    dest: /etc/traefik/traefik.yml
+    content: |
+      entryPoints:
+        web:
+          address: ":80"
+        websecure:
+          address: ":443"
+      api:
+        dashboard: {{ traefik_dashboard_enabled | bool | lower }}
+        insecure: {{ traefik_dashboard_enabled | bool | lower }}
+      providers:
+        file:
+          directory: /etc/traefik/dynamic
+          watch: true
+      {% if traefik_acme_email | length > 0 %}
+      certificatesResolvers:
+        letsencrypt:
+          acme:
+            email: "{{ traefik_acme_email }}"
+            storage: /etc/traefik/acme.json
+            httpChallenge:
+              entryPoint: web
+      {% endif %}
+    owner: traefik
+    group: traefik
+    mode: "0644"
+  register: traefik_config_changed
+
+- name: Install Traefik systemd unit
+  copy:
+    dest: /etc/systemd/system/traefik.service
+    content: |
+      [Unit]
+      Description=Traefik reverse proxy
+      After=network.target
+
+      [Service]
+      User=traefik
+      Group=traefik
+      ExecStart=/usr/local/bin/traefik --configFile=/etc/traefik/traefik.yml
+      Restart=on-failure
+      AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: traefik_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: traefik_unit_changed.changed
+
+- name: Enable and start Traefik service
+  systemd:
+    name: traefik
+    enabled: true
+    state: started
+
+- name: Restart Traefik after config change
+  systemd:
+    name: traefik
+    state: restarted
+  when: traefik_config_changed.changed and not traefik_unit_changed.changed
+
+- name: Debug - Traefik installed
+  debug:
+    msg: >-
+      Traefik {{ traefik_version }} installed and running{{
+        ' with dashboard on :8080' if traefik_dashboard_enabled | bool else '' }}{{
+        ' (ACME via ' + traefik_acme_email + ')' if traefik_acme_email | length > 0 else '' }}

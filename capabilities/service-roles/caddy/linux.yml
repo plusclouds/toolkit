@@ -1,0 +1,109 @@
+---
+- name: Set Caddy role defaults
+  set_fact:
+    caddy_domain: "{{ service_roles.caddy.config.domain | default('') }}"
+    caddy_reverse_proxy_target: "{{ service_roles.caddy.config.reverse_proxy_target | default('') }}"
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - debian-keyring
+      - debian-archive-keyring
+      - apt-transport-https
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download Caddy's official GPG key (Debian family)
+  get_url:
+    url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
+    dest: /tmp/caddy-gpg.key
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Dearmor Caddy's GPG key (Debian family)
+  command:
+    argv:
+      - gpg
+      - --dearmor
+      - --batch
+      - --yes
+      - -o
+      - /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+      - /tmp/caddy-gpg.key
+  args:
+    creates: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Caddy apt repository (Debian family)
+  get_url:
+    url: https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt
+    dest: /etc/apt/sources.list.d/caddy-stable.list
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Caddy (Debian family)
+  apt:
+    name: caddy
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install dnf-plugins-core (RedHat family)
+  dnf:
+    name: dnf-plugins-core
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable Caddy COPR repository (RedHat family)
+  command:
+    argv:
+      - dnf
+      - copr
+      - enable
+      - -y
+      - "@caddy/caddy"
+  args:
+    creates: "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:@caddy:caddy.repo"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Caddy (RedHat family)
+  dnf:
+    name: caddy
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start Caddy service
+  systemd:
+    name: caddy
+    enabled: true
+    state: started
+
+- name: Configure Caddyfile
+  copy:
+    dest: /etc/caddy/Caddyfile
+    content: |
+      {{ caddy_domain }} {
+      {% if caddy_reverse_proxy_target | length > 0 %}
+          reverse_proxy {{ caddy_reverse_proxy_target }}
+      {% else %}
+          respond "Caddy is running"
+      {% endif %}
+      }
+    owner: caddy
+    group: caddy
+    mode: "0644"
+  when: caddy_domain | length > 0
+  register: caddy_config_changed
+
+- name: Reload Caddy after config change
+  systemd:
+    name: caddy
+    state: reloaded
+  when: caddy_config_changed.changed | default(false)
+
+- name: Debug - Caddy installed
+  debug:
+    msg: "Caddy installed and running{{ ' (domain: ' + caddy_domain + ')' if caddy_domain | length > 0 else ', using default Caddyfile' }}"

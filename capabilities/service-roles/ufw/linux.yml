@@ -1,0 +1,46 @@
+---
+- name: Set UFW role defaults
+  set_fact:
+    ufw_allow_ports: "{{ service_roles.ufw.config.allow_ports | default('22') }}"
+    ufw_default_incoming: "{{ service_roles.ufw.config.default_incoming | default('deny') }}"
+    ufw_default_outgoing: "{{ service_roles.ufw.config.default_outgoing | default('allow') }}"
+
+- name: Fail on unsupported OS family
+  fail:
+    msg: "UFW is not packaged for RedHat-family distros (use firewalld instead)."
+  when: ansible_facts.os_family != "Debian"
+
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+- name: Set default incoming/outgoing policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: "{{ ufw_default_incoming }}" }
+    - { direction: outgoing, policy: "{{ ufw_default_outgoing }}" }
+
+# Ports are allowed before UFW is enabled so a default-deny incoming policy
+# never applies without at least the caller-specified ports (SSH by
+# default) already let through - enabling first would risk locking out the
+# only way to reach this host.
+- name: Allow configured ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+  loop: "{{ ufw_allow_ports.split(',') | map('trim') | reject('equalto', '') | list }}"
+  when: ufw_allow_ports | length > 0
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Debug - UFW installed
+  debug:
+    msg: >-
+      UFW installed and enabled (default incoming: {{ ufw_default_incoming }},
+      default outgoing: {{ ufw_default_outgoing }}, allowed ports: {{ ufw_allow_ports }})

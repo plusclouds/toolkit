@@ -1,0 +1,49 @@
+---
+- name: Set Nginx role defaults
+  set_fact:
+    nginx_server_name: "{{ service_roles.nginx.config.server_name | default('') }}"
+
+- name: Install Nginx (Debian family)
+  apt:
+    name: nginx
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Nginx (RedHat family)
+  dnf:
+    name: nginx
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start Nginx service
+  systemd:
+    name: nginx
+    enabled: true
+    state: started
+
+# Debian's nginx package ships its default server block in
+# sites-available/default; RedHat's ships it directly inside nginx.conf.
+- name: Determine default site config path
+  set_fact:
+    nginx_default_site: "{{ '/etc/nginx/sites-available/default' if ansible_facts.os_family == 'Debian' else '/etc/nginx/nginx.conf' }}"
+  when: nginx_server_name | length > 0
+
+- name: Set server_name in the default site
+  lineinfile:
+    path: "{{ nginx_default_site }}"
+    regexp: "^(\\s*)server_name\\s+.*;"
+    line: "\\1server_name {{ nginx_server_name }};"
+    backrefs: true
+  when: nginx_server_name | length > 0
+  register: nginx_config_changed
+
+- name: Reload Nginx after config change
+  systemd:
+    name: nginx
+    state: reloaded
+  when: nginx_config_changed.changed | default(false)
+
+- name: Debug - Nginx installed
+  debug:
+    msg: "Nginx installed and running{{ ' (server_name: ' + nginx_server_name + ')' if nginx_server_name | length > 0 else '' }}"

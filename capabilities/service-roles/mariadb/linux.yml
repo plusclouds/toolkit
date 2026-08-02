@@ -1,0 +1,47 @@
+---
+- name: Set MariaDB role defaults
+  set_fact:
+    mariadb_root_password: "{{ service_roles.mariadb.config.root_password | default('') }}"
+
+- name: Install MariaDB server (Debian family)
+  apt:
+    name: mariadb-server
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install MariaDB server (RedHat family)
+  dnf:
+    name: mariadb-server
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start MariaDB service
+  systemd:
+    name: mariadb
+    enabled: true
+    state: started
+
+# Fresh installs authenticate root via the unix_socket plugin, so this
+# connects without a password the first time it runs, then keeps the
+# password in sync on every subsequent boot - same idempotent-by-
+# re-application approach as capabilities/change-password/linux.yml.
+#
+# Unlike MySQL's caching_sha2_password, MariaDB's ALTER USER ... IDENTIFIED
+# BY switches the account off unix_socket and onto mysql_native_password on
+# its own, so no explicit IDENTIFIED WITH clause is needed here.
+- name: Set MariaDB root password
+  command:
+    argv:
+      - mysql
+      - -u
+      - root
+      - -e
+      - "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mariadb_root_password }}'; FLUSH PRIVILEGES;"
+  when: mariadb_root_password | length > 0
+  changed_when: true
+  no_log: true
+
+- name: Debug - MariaDB installed
+  debug:
+    msg: "MariaDB installed and running{{ ' (root password set)' if mariadb_root_password | length > 0 else '' }}"

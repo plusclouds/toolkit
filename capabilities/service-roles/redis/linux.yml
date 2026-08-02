@@ -1,0 +1,63 @@
+---
+- name: Set Redis role defaults
+  set_fact:
+    redis_password: "{{ service_roles.redis.config.password | default('') }}"
+    redis_bind_all_interfaces: "{{ service_roles.redis.config.bind_all_interfaces | default(false) }}"
+
+- name: Install Redis server (Debian family)
+  apt:
+    name: redis-server
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Redis server (RedHat family)
+  dnf:
+    name: redis
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# Package name is close on both families, but the config path and systemd
+# unit differ - Debian/Ubuntu's redis-server package ships
+# /etc/redis/redis.conf and the `redis-server` unit, RedHat/AlmaLinux's
+# redis package ships /etc/redis.conf and the `redis` unit.
+- name: Determine Redis service and config paths
+  set_fact:
+    redis_service_name: "{{ 'redis' if ansible_facts.os_family == 'RedHat' else 'redis-server' }}"
+    redis_config_path: "{{ '/etc/redis.conf' if ansible_facts.os_family == 'RedHat' else '/etc/redis/redis.conf' }}"
+
+- name: Set Redis requirepass
+  lineinfile:
+    path: "{{ redis_config_path }}"
+    regexp: "^#?\\s*requirepass\\s+.*"
+    line: "requirepass {{ redis_password }}"
+  when: redis_password | length > 0
+  register: redis_password_changed
+  no_log: true
+
+- name: Set Redis bind address to listen on all interfaces
+  lineinfile:
+    path: "{{ redis_config_path }}"
+    regexp: "^#?\\s*bind\\s+.*"
+    line: "bind 0.0.0.0 -::1"
+  when: redis_bind_all_interfaces | bool
+  register: redis_bind_changed
+
+- name: Enable and start Redis service
+  systemd:
+    name: "{{ redis_service_name }}"
+    enabled: true
+    state: started
+
+- name: Restart Redis after config change
+  systemd:
+    name: "{{ redis_service_name }}"
+    state: restarted
+  when: (redis_password_changed.changed | default(false)) or (redis_bind_changed.changed | default(false))
+
+- name: Debug - Redis installed
+  debug:
+    msg: >-
+      Redis installed and running{{
+        ' (password set)' if redis_password | length > 0 else '' }}{{
+        ', listening on all interfaces' if redis_bind_all_interfaces | bool else '' }}

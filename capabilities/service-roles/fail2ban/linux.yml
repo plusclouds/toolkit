@@ -1,0 +1,55 @@
+---
+- name: Set Fail2ban role defaults
+  set_fact:
+    fail2ban_bantime: "{{ service_roles.fail2ban.config.bantime | default('') }}"
+    fail2ban_maxretry: "{{ service_roles.fail2ban.config.maxretry | default('') }}"
+
+- name: Install Fail2ban (Debian family)
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Fail2ban (RedHat family)
+  dnf:
+    name: fail2ban
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# jail.local overrides jail.conf's [DEFAULT] section without being
+# clobbered by package upgrades - this is Fail2ban's documented way of
+# customizing behavior.
+- name: Configure Fail2ban jail.local overrides
+  copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      {% if fail2ban_bantime | length > 0 %}
+      bantime = {{ fail2ban_bantime }}
+      {% endif %}
+      {% if fail2ban_maxretry | length > 0 %}
+      maxretry = {{ fail2ban_maxretry }}
+      {% endif %}
+    mode: "0644"
+  when: (fail2ban_bantime | length > 0) or (fail2ban_maxretry | length > 0)
+  register: fail2ban_config_changed
+
+- name: Enable and start Fail2ban service
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Restart Fail2ban after config change
+  systemd:
+    name: fail2ban
+    state: restarted
+  when: fail2ban_config_changed.changed | default(false)
+
+- name: Debug - Fail2ban installed
+  debug:
+    msg: >-
+      Fail2ban installed and running{{
+        ' (bantime=' + fail2ban_bantime + ')' if fail2ban_bantime | length > 0 else '' }}{{
+        ' (maxretry=' + fail2ban_maxretry + ')' if fail2ban_maxretry | length > 0 else '' }}

@@ -1,0 +1,6 @@
+description: "Installs and enables Caddy via Caddy's official repository, optionally configuring a domain with automatic HTTPS and a reverse-proxy target."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

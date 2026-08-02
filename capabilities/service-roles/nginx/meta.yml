@@ -1,0 +1,6 @@
+description: "Installs and enables Nginx via the guest's package manager, optionally setting the default site's server_name."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

@@ -1,0 +1,94 @@
+---
+- name: Set Docker role defaults
+  set_fact:
+    docker_users: "{{ service_roles.docker.config.users | default('') }}"
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Create apt keyrings directory (Debian family)
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download Docker's official GPG key (Debian family)
+  get_url:
+    url: "https://download.docker.com/linux/{{ ansible_facts.distribution | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Determine dpkg architecture (Debian family)
+  set_fact:
+    docker_dpkg_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Docker apt repository (Debian family)
+  apt_repository:
+    repo: >-
+      deb [arch={{ docker_dpkg_arch }} signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/{{ ansible_facts.distribution | lower }}
+      {{ ansible_facts.distribution_release }} stable
+    state: present
+    filename: docker
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Docker Engine (Debian family)
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Docker dnf repository (RedHat family)
+  command:
+    argv:
+      - dnf
+      - config-manager
+      - --add-repo
+      - https://download.docker.com/linux/rhel/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Docker Engine (RedHat family)
+  dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start Docker service
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add users to the docker group
+  user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users.split(',') | map('trim') | reject('equalto', '') | list }}"
+  when: docker_users | length > 0
+
+- name: Debug - Docker installed
+  debug:
+    msg: "Docker installed and running{{ ' (added to docker group: ' + docker_users + ')' if docker_users | length > 0 else '' }}"

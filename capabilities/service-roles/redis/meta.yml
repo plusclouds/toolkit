@@ -1,0 +1,6 @@
+description: "Installs and enables a Redis server via the guest's package manager, optionally setting a password and binding to all interfaces."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"
