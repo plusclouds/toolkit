@@ -47,4 +47,8 @@ jobs:
         run: |
           cp manifest.json /tmp/manifest.before.json || true
           ./scripts/generate-manifest.sh
-          diff /tmp/manifest.before.json manifest.json || (echo "manifest.json is stale — run scripts/generate-manifest.sh and commit it" && exit 1)
+          # generated_at is a wall-clock timestamp that legitimately differs
+          # between the committed manifest and any regeneration, so it's
+          # excluded from the comparison - only the file hashes/sizes matter.
+          diff <(grep -v generated_at /tmp/manifest.before.json) <(grep -v generated_at manifest.json) \
+            || (echo "manifest.json is stale — run scripts/generate-manifest.sh and commit it" && exit 1)

@@ -1,6 +1,6 @@
 458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa  agents/backup-agent/README.md
 daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3  agents/storaged/README.md
-59e6e7806dd415e0af3c767d5ed3c664a5f6177dbe5a0e408cd9bbf095140cd1  agents/vm-service/agent.yaml
+8ce827d34150ae0d23d1660e32b61752540095f1d289be35c5b685bdb7cdb124  agents/vm-service/agent.yaml
 17e55e6851ad47b57e3ce1df834e9edcaa1f8141d78e22862f95bb7e22164cda  agents/vm-service/cleanup.sh
 89e50c99ae00ad85966191d24dd7e4450b7326323f495c9048f675d2d5c6d117  agents/vm-service/deploy-service.yml
 ea515c955dfd07eb461b30ab250b7811e27b48f6d8e90279af6399818c4962a8  agents/vm-service/how-to-deploy-service.md
