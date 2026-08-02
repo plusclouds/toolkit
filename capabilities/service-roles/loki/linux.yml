@@ -1,0 +1,158 @@
+---
+# No apt/dnf package covers every supported distro consistently, so this
+# installs the official GitHub release binary directly, same approach as
+# capabilities/service-roles/prometheus/linux.yml uses for Prometheus.
+# Loki's release asset is a .zip (not .tar.gz), so unzip is required on
+# the guest for ansible's unarchive module to extract it.
+- name: Set Loki role defaults
+  set_fact:
+    loki_version: "{{ service_roles.loki.config.version | default('3.6.13') }}"
+    loki_retention_period: "{{ service_roles.loki.config.retention_period | default('0s') }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    loki_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Install unzip (Debian family)
+  apt:
+    name: unzip
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install unzip (RedHat family)
+  dnf:
+    name: unzip
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Check if Loki binary is already installed
+  stat:
+    path: /usr/local/bin/loki
+  register: loki_binary
+
+- name: Download and extract Loki release
+  unarchive:
+    src: "https://github.com/grafana/loki/releases/download/v{{ loki_version }}/loki-linux-{{ loki_arch }}.zip"
+    dest: /tmp
+    remote_src: true
+  when: not loki_binary.stat.exists
+
+- name: Install loki binary
+  copy:
+    src: "/tmp/loki-linux-{{ loki_arch }}"
+    dest: /usr/local/bin/loki
+    remote_src: true
+    mode: "0755"
+  when: not loki_binary.stat.exists
+
+- name: Remove extracted release file
+  file:
+    path: "/tmp/loki-linux-{{ loki_arch }}"
+    state: absent
+  when: not loki_binary.stat.exists
+
+- name: Create loki system group
+  group:
+    name: loki
+    system: true
+    state: present
+
+- name: Create loki system user
+  user:
+    name: loki
+    group: loki
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/loki
+    create_home: false
+    state: present
+
+- name: Create Loki config/data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: loki
+    group: loki
+    mode: "0755"
+  loop:
+    - /etc/loki
+    - /var/lib/loki
+
+- name: Configure loki-config.yaml
+  copy:
+    dest: /etc/loki/loki-config.yaml
+    content: |
+      auth_enabled: false
+
+      server:
+        http_listen_port: 3100
+        grpc_listen_port: 9096
+
+      common:
+        path_prefix: /var/lib/loki
+        storage:
+          filesystem:
+            chunks_directory: /var/lib/loki/chunks
+            rules_directory: /var/lib/loki/rules
+        replication_factor: 1
+        ring:
+          kvstore:
+            store: inmemory
+
+      schema_config:
+        configs:
+          - from: 2024-01-01
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: index_
+              period: 24h
+
+      limits_config:
+        retention_period: {{ loki_retention_period }}
+    owner: loki
+    group: loki
+    mode: "0644"
+  register: loki_config_changed
+
+- name: Install Loki systemd unit
+  copy:
+    dest: /etc/systemd/system/loki.service
+    content: |
+      [Unit]
+      Description=Loki log aggregation
+      After=network.target
+
+      [Service]
+      User=loki
+      Group=loki
+      ExecStart=/usr/local/bin/loki -config.file=/etc/loki/loki-config.yaml
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: loki_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: loki_unit_changed.changed
+
+- name: Enable and start Loki service
+  systemd:
+    name: loki
+    enabled: true
+    state: started
+
+- name: Restart Loki after config change
+  systemd:
+    name: loki
+    state: restarted
+  when: loki_config_changed.changed and not loki_unit_changed.changed
+
+- name: Debug - Loki installed
+  debug:
+    msg: "Loki {{ loki_version }} installed and running (retention_period={{ loki_retention_period }})"

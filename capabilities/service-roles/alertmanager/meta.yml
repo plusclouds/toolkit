@@ -1,0 +1,6 @@
+description: "Installs Alertmanager as a systemd service from its official GitHub release binary, optionally routing alerts to a webhook."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

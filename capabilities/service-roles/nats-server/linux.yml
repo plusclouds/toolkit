@@ -1,0 +1,110 @@
+---
+# No apt/dnf package covers every supported distro consistently, so this
+# installs the official GitHub release binary directly, same approach as
+# capabilities/service-roles/node_exporter/linux.yml uses for node_exporter.
+- name: Set nats-server role defaults
+  set_fact:
+    nats_server_version: "{{ service_roles['nats-server'].config.version | default('2.14.3') }}"
+    nats_server_jetstream_enabled: "{{ service_roles['nats-server'].config.jetstream_enabled | default(false) }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    nats_server_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Check if nats-server binary is already installed
+  stat:
+    path: /usr/local/bin/nats-server
+  register: nats_server_binary
+
+- name: Set nats-server release URL
+  set_fact:
+    nats_server_release_url: >-
+      {{ 'https://github.com/nats-io/nats-server/releases/download/v' ~
+         nats_server_version ~ '/nats-server-v' ~ nats_server_version ~
+         '-linux-' ~ nats_server_arch ~ '.tar.gz' }}
+
+- name: Download and extract nats-server release
+  unarchive:
+    src: "{{ nats_server_release_url }}"
+    dest: /opt
+    remote_src: true
+  when: not nats_server_binary.stat.exists
+
+- name: Create nats system group
+  group:
+    name: nats
+    system: true
+    state: present
+
+- name: Create nats system user
+  user:
+    name: nats
+    group: nats
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/nats
+    create_home: false
+    state: present
+
+- name: Install nats-server binary
+  copy:
+    src: "/opt/nats-server-v{{ nats_server_version }}-linux-{{ nats_server_arch }}/nats-server"
+    dest: /usr/local/bin/nats-server
+    remote_src: true
+    mode: "0755"
+  when: not nats_server_binary.stat.exists
+
+- name: Remove extracted release directory
+  file:
+    path: "/opt/nats-server-v{{ nats_server_version }}-linux-{{ nats_server_arch }}"
+    state: absent
+  when: not nats_server_binary.stat.exists
+
+- name: Create JetStream storage directory
+  file:
+    path: /var/lib/nats/jetstream
+    state: directory
+    owner: nats
+    group: nats
+    mode: "0755"
+  when: nats_server_jetstream_enabled | bool
+
+- name: Install nats-server systemd unit
+  copy:
+    dest: /etc/systemd/system/nats-server.service
+    content: |
+      [Unit]
+      Description=NATS Server
+      After=network.target
+
+      [Service]
+      User=nats
+      Group=nats
+      ExecStart=/usr/local/bin/nats-server{{ ' -js -sd /var/lib/nats/jetstream' if nats_server_jetstream_enabled | bool else '' }}
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: nats_server_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: nats_server_unit_changed.changed
+
+- name: Enable and start nats-server service
+  systemd:
+    name: nats-server
+    enabled: true
+    state: started
+
+- name: Restart nats-server after config change
+  systemd:
+    name: nats-server
+    state: restarted
+  when: nats_server_unit_changed.changed
+
+- name: Debug - nats-server installed
+  debug:
+    msg: "NATS Server {{ nats_server_version }} installed and running{{ ' (JetStream enabled)' if nats_server_jetstream_enabled | bool else '' }}"

@@ -1,0 +1,6 @@
+description: "Installs Loki as a systemd service from its official GitHub release binary, using local filesystem storage."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

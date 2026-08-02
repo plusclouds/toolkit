@@ -1,3 +1,16 @@
-version: "3.1.0"
-dashboard_enabled: false
-acme_email: ""
+version:
+  default: "3.1.0"
+  description: >-
+    Traefik release to download (GitHub release tag without the leading
+    "v").
+dashboard_enabled:
+  default: false
+  description: >-
+    If true, enables the Traefik dashboard/API, exposed insecurely on
+    :8080.
+acme_email:
+  default: ""
+  description: >-
+    Email address for Let's Encrypt ACME registration via the
+    httpChallenge on the web (:80) entrypoint. Empty = no ACME resolver is
+    configured, so services must supply their own certificates.

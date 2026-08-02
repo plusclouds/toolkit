@@ -1,0 +1,89 @@
+---
+- name: Set Jenkins role defaults
+  set_fact:
+    jenkins_http_port: "{{ service_roles.jenkins.config.http_port | default('8080') }}"
+
+- name: Install Java prerequisite (Debian family)
+  apt:
+    name: openjdk-21-jre-headless
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download Jenkins' official GPG key (Debian family)
+  get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    dest: /usr/share/keyrings/jenkins-keyring.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Jenkins apt repository (Debian family)
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Jenkins (Debian family)
+  apt:
+    name: jenkins
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Java prerequisite (RedHat family)
+  dnf:
+    name: java-21-openjdk
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Add Jenkins yum repository (RedHat family)
+  get_url:
+    url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+    dest: /etc/yum.repos.d/jenkins.repo
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Import Jenkins' official GPG key (RedHat family)
+  rpm_key:
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Jenkins (RedHat family)
+  dnf:
+    name: jenkins
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Set Jenkins HTTP port (Debian family)
+  lineinfile:
+    path: /etc/default/jenkins
+    regexp: "^HTTP_PORT=.*"
+    line: "HTTP_PORT={{ jenkins_http_port }}"
+  when: ansible_facts.os_family == "Debian"
+  register: jenkins_config_changed_debian
+
+- name: Set Jenkins HTTP port (RedHat family)
+  lineinfile:
+    path: /etc/sysconfig/jenkins
+    regexp: '^JENKINS_PORT=.*'
+    line: 'JENKINS_PORT="{{ jenkins_http_port }}"'
+  when: ansible_facts.os_family == "RedHat"
+  register: jenkins_config_changed_redhat
+
+- name: Enable and start Jenkins service
+  systemd:
+    name: jenkins
+    enabled: true
+    state: started
+
+- name: Restart Jenkins after config change
+  systemd:
+    name: jenkins
+    state: restarted
+  when: (jenkins_config_changed_debian.changed | default(false)) or (jenkins_config_changed_redhat.changed | default(false))
+
+- name: Debug - Jenkins installed
+  debug:
+    msg: "Jenkins installed and running on :{{ jenkins_http_port }} (initial admin password at /var/lib/jenkins/secrets/initialAdminPassword)"

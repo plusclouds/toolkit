@@ -1,0 +1,9 @@
+forwarders:
+  default: "1.1.1.1,1.0.0.1"
+  description: >-
+    Comma-separated upstream DNS resolvers queries are forwarded to.
+allow_query:
+  default: "any"
+  description: >-
+    ACL controlling which clients may query this resolver: "any", or a
+    comma-separated list of CIDRs (e.g. "10.0.0.0/24,192.168.1.0/24").

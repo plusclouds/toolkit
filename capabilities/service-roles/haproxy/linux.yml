@@ -1,0 +1,70 @@
+---
+- name: Set HAProxy role defaults
+  set_fact:
+    haproxy_frontend_port: "{{ service_roles.haproxy.config.frontend_port | default('80') }}"
+    haproxy_backend_servers: "{{ service_roles.haproxy.config.backend_servers | default('') }}"
+
+- name: Install HAProxy (Debian family)
+  apt:
+    name: haproxy
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install HAProxy (RedHat family)
+  dnf:
+    name: haproxy
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Configure haproxy.cfg
+  copy:
+    dest: /etc/haproxy/haproxy.cfg
+    content: |
+      global
+          log /dev/log local0
+          maxconn 4096
+
+      defaults
+          log     global
+          mode    http
+          timeout connect 5s
+          timeout client  30s
+          timeout server  30s
+
+      frontend toolkit_frontend
+          bind *:{{ haproxy_frontend_port }}
+      {% if haproxy_backend_servers | length > 0 %}
+          default_backend toolkit_backend
+
+      backend toolkit_backend
+          balance roundrobin
+      {% for target in haproxy_backend_servers.split(',') | map('trim') | reject('equalto', '') | list %}
+          server backend{{ loop.index }} {{ target }} check
+      {% endfor %}
+      {% else %}
+          mode http
+          http-request return status 200 content-type text/plain string "HAProxy is running"
+      {% endif %}
+    owner: root
+    group: root
+    mode: "0644"
+  register: haproxy_config_changed
+
+- name: Enable and start HAProxy service
+  systemd:
+    name: haproxy
+    enabled: true
+    state: started
+
+- name: Restart HAProxy after config change
+  systemd:
+    name: haproxy
+    state: restarted
+  when: haproxy_config_changed.changed | default(false)
+
+- name: Debug - HAProxy installed
+  debug:
+    msg: >-
+      HAProxy installed and running on :{{ haproxy_frontend_port }}{{
+        ' (balancing: ' + haproxy_backend_servers + ')' if haproxy_backend_servers | length > 0 else '' }}

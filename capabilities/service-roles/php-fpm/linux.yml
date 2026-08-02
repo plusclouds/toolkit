@@ -1,0 +1,78 @@
+---
+- name: Set php-fpm role defaults
+  set_fact:
+    php_fpm_memory_limit: "{{ service_roles['php-fpm'].config.memory_limit | default('') }}"
+    php_fpm_upload_max_filesize: "{{ service_roles['php-fpm'].config.upload_max_filesize | default('') }}"
+
+- name: Install PHP-FPM (Debian family)
+  apt:
+    name:
+      - php-fpm
+      - php-cli
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install PHP-FPM (RedHat family)
+  dnf:
+    name:
+      - php-fpm
+      - php-cli
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# Debian names the unit after the installed PHP version (e.g. php8.3-fpm),
+# while RedHat family ships the fixed php-fpm.service - so the actual unit
+# name has to be discovered rather than assumed.
+- name: Discover the php-fpm systemd unit name
+  service_facts:
+
+- name: Set php-fpm service name fact
+  set_fact:
+    php_fpm_service_name: >-
+      {{ (ansible_facts.services.keys() | select('match', '^php.*fpm\.service$') | list | first)
+         | regex_replace('\.service$', '') }}
+
+- name: Enable and start php-fpm service
+  systemd:
+    name: "{{ php_fpm_service_name }}"
+    enabled: true
+    state: started
+
+- name: Determine PHP additional ini directory
+  command: php --ini
+  register: php_ini_info
+  changed_when: false
+
+- name: Set php-fpm conf.d directory fact
+  set_fact:
+    php_fpm_confd_dir: >-
+      {{ (php_ini_info.stdout_lines | select('match', '^Scan for additional .ini files in:') | first)
+         .split(':')[1] | trim }}
+
+- name: Configure php-fpm ini overrides
+  copy:
+    dest: "{{ php_fpm_confd_dir }}/99-toolkit.ini"
+    content: |
+      {% if php_fpm_memory_limit | length > 0 %}
+      memory_limit = {{ php_fpm_memory_limit }}
+      {% endif %}
+      {% if php_fpm_upload_max_filesize | length > 0 %}
+      upload_max_filesize = {{ php_fpm_upload_max_filesize }}
+      post_max_size = {{ php_fpm_upload_max_filesize }}
+      {% endif %}
+    mode: "0644"
+  when: (php_fpm_memory_limit | length > 0) or (php_fpm_upload_max_filesize | length > 0)
+  register: php_fpm_config_changed
+
+- name: Restart php-fpm after config change
+  systemd:
+    name: "{{ php_fpm_service_name }}"
+    state: restarted
+  when: php_fpm_config_changed.changed | default(false)
+
+- name: Debug - PHP-FPM installed
+  debug:
+    msg: >-
+      PHP-FPM installed and running as {{ php_fpm_service_name }}{{
+        ' (memory_limit=' + php_fpm_memory_limit + ')' if php_fpm_memory_limit | length > 0 else '' }}

@@ -1,0 +1,17 @@
+volume_path:
+  default: "/var/lib/minio"
+  description: >-
+    Filesystem path MinIO stores objects under (MINIO_VOLUMES).
+console_port:
+  default: "9001"
+  description: >-
+    Port the MinIO web console listens on.
+root_user:
+  default: ""
+  description: >-
+    MINIO_ROOT_USER. Empty = MinIO auto-generates a root credential and
+    logs it once on first start (retrievable via `journalctl -u minio`).
+root_password:
+  default: ""
+  description: >-
+    MINIO_ROOT_PASSWORD. Only used when root_user is also set.

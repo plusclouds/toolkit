@@ -1,0 +1,85 @@
+---
+- name: Set BIND9 role defaults
+  set_fact:
+    bind9_forwarders: "{{ service_roles.bind9.config.forwarders | default('1.1.1.1,1.0.0.1') }}"
+    bind9_allow_query: "{{ service_roles.bind9.config.allow_query | default('any') }}"
+
+- name: Install BIND9 (Debian family)
+  apt:
+    name:
+      - bind9
+      - bind9utils
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install BIND9 (RedHat family)
+  dnf:
+    name: bind
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Set BIND9 allow_query list fact
+  set_fact:
+    bind9_allow_query_list: >-
+      {{ ['any'] if bind9_allow_query | trim == 'any' else
+         (bind9_allow_query.split(',') | map('trim') | reject('equalto', '') | list) }}
+
+- name: Configure BIND9 options (Debian family)
+  copy:
+    dest: /etc/bind/named.conf.options
+    content: |
+      options {
+          directory "/var/cache/bind";
+          forwarders {
+              {{ bind9_forwarders.split(',') | map('trim') | reject('equalto', '') | join('; ') }};
+          };
+          dnssec-validation auto;
+          listen-on { any; };
+          allow-query { {{ bind9_allow_query_list | join('; ') }}; };
+      };
+    owner: root
+    group: bind
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+  register: bind9_config_changed_debian
+
+- name: Configure named.conf (RedHat family)
+  copy:
+    dest: /etc/named.conf
+    content: |
+      options {
+          listen-on port 53 { any; };
+          directory "/var/named";
+          forwarders {
+              {{ bind9_forwarders.split(',') | map('trim') | reject('equalto', '') | join('; ') }};
+          };
+          dnssec-validation auto;
+          allow-query { {{ bind9_allow_query_list | join('; ') }}; };
+      };
+
+      zone "." IN {
+          type hint;
+          file "named.ca";
+      };
+    owner: root
+    group: named
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+  register: bind9_config_changed_redhat
+
+- name: Enable and start BIND9 service
+  systemd:
+    name: named
+    enabled: true
+    state: started
+
+- name: Restart BIND9 after config change
+  systemd:
+    name: named
+    state: restarted
+  when: (bind9_config_changed_debian.changed | default(false)) or (bind9_config_changed_redhat.changed | default(false))
+
+- name: Debug - BIND9 installed
+  debug:
+    msg: "BIND9 installed and running (forwarding to {{ bind9_forwarders }}, allow_query: {{ bind9_allow_query }})"

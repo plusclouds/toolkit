@@ -1,0 +1,15 @@
+management_plugin_enabled:
+  default: true
+  description: >-
+    If true, enables the rabbitmq_management plugin (web UI + HTTP API on
+    :15672).
+admin_user:
+  default: ""
+  description: >-
+    Username for an administrator account, created with full permissions
+    on the default vhost. Empty = no extra user is created, only the
+    default guest account (which RabbitMQ restricts to localhost) exists.
+admin_password:
+  default: ""
+  description: >-
+    Password for admin_user. Only used when admin_user is set.

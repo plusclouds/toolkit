@@ -1,2 +1,11 @@
-bantime: ""
-maxretry: ""
+bantime:
+  default: ""
+  description: >-
+    jail.local [DEFAULT] bantime override, in Fail2ban's own duration
+    syntax (e.g. "10m", "1h"). Empty = leave the package's default value
+    in place.
+maxretry:
+  default: ""
+  description: >-
+    jail.local [DEFAULT] maxretry override, a plain integer. Empty = leave
+    the package's default value in place.

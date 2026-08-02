@@ -1,0 +1,111 @@
+---
+- name: Set Vault role defaults
+  set_fact:
+    vault_bind_all_interfaces: "{{ service_roles.vault.config.bind_all_interfaces | default(false) }}"
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Create apt keyrings directory (Debian family)
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download HashiCorp's official GPG key (Debian family)
+  get_url:
+    url: https://apt.releases.hashicorp.com/gpg
+    dest: /etc/apt/keyrings/hashicorp.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add HashiCorp apt repository (Debian family)
+  apt_repository:
+    repo: >-
+      deb [signed-by=/etc/apt/keyrings/hashicorp.asc]
+      https://apt.releases.hashicorp.com {{ ansible_facts.distribution_release }} main
+    state: present
+    filename: hashicorp
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Vault (Debian family)
+  apt:
+    name: vault
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add HashiCorp yum repository (RedHat family)
+  command:
+    argv:
+      - dnf
+      - config-manager
+      - --add-repo
+      - https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+  args:
+    creates: /etc/yum.repos.d/hashicorp.repo
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Vault (RedHat family)
+  dnf:
+    name: vault
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Create Vault data directory
+  file:
+    path: /opt/vault/data
+    state: directory
+    owner: vault
+    group: vault
+    mode: "0700"
+
+# Initialization (`vault operator init`) and unsealing are deliberately
+# left to the operator - automating them would mean either storing unseal
+# keys on disk or hardcoding a fixed key share count/threshold, both of
+# which push a security decision this role shouldn't make silently.
+- name: Configure vault.hcl
+  copy:
+    dest: /etc/vault.d/vault.hcl
+    content: |
+      storage "file" {
+        path = "/opt/vault/data"
+      }
+
+      listener "tcp" {
+        address     = "{{ '0.0.0.0:8200' if vault_bind_all_interfaces | bool else '127.0.0.1:8200' }}"
+        tls_disable = 1
+      }
+
+      ui = true
+    owner: vault
+    group: vault
+    mode: "0640"
+  register: vault_config_changed
+
+- name: Enable and start Vault service
+  systemd:
+    name: vault
+    enabled: true
+    state: started
+
+- name: Restart Vault after config change
+  systemd:
+    name: vault
+    state: restarted
+  when: vault_config_changed.changed | default(false)
+
+- name: Debug - Vault installed
+  debug:
+    msg: >-
+      Vault installed and running (uninitialized - run `vault operator init`
+      and `vault operator unseal` to finish setup){{
+        ', listening on all interfaces' if vault_bind_all_interfaces | bool else ', localhost-only' }}

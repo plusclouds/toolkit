@@ -38,6 +38,7 @@ agent:
   # "rejected" result instead of being able to run it.
   allowed_operations:
     - agent.allowed_operations
+    - agent.version
     - services.list
     - services.get
     - services.start

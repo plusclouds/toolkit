@@ -1,0 +1,6 @@
+description: "Installs and enables PHP-FPM via the guest's package manager, optionally overriding memory_limit and upload_max_filesize."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

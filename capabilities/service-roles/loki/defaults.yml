@@ -1,0 +1,11 @@
+version:
+  default: "3.6.13"
+  description: >-
+    Loki release to download (GitHub release tag without the leading
+    "v").
+retention_period:
+  default: "0s"
+  description: >-
+    limits_config.retention_period value, in Loki's own duration syntax
+    (e.g. "744h" for 31 days). "0s" = retention disabled, logs are kept
+    indefinitely.

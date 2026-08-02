@@ -1,0 +1,140 @@
+---
+# No apt/dnf package covers every supported distro consistently, so this
+# installs the official GitHub release binary directly, same approach as
+# capabilities/service-roles/prometheus/linux.yml uses for Prometheus.
+- name: Set Alertmanager role defaults
+  set_fact:
+    alertmanager_version: "{{ service_roles.alertmanager.config.version | default('0.33.1') }}"
+    alertmanager_webhook_url: "{{ service_roles.alertmanager.config.webhook_url | default('') }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    alertmanager_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Check if Alertmanager binary is already installed
+  stat:
+    path: /usr/local/bin/alertmanager
+  register: alertmanager_binary
+
+- name: Set Alertmanager release URL
+  set_fact:
+    alertmanager_release_url: >-
+      {{ 'https://github.com/prometheus/alertmanager/releases/download/v' ~
+         alertmanager_version ~ '/alertmanager-' ~ alertmanager_version ~
+         '.linux-' ~ alertmanager_arch ~ '.tar.gz' }}
+
+- name: Download and extract Alertmanager release
+  unarchive:
+    src: "{{ alertmanager_release_url }}"
+    dest: /opt
+    remote_src: true
+  when: not alertmanager_binary.stat.exists
+
+- name: Create alertmanager system group
+  group:
+    name: alertmanager
+    system: true
+    state: present
+
+- name: Create alertmanager system user
+  user:
+    name: alertmanager
+    group: alertmanager
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/alertmanager
+    create_home: false
+    state: present
+
+- name: Create Alertmanager config/data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: alertmanager
+    group: alertmanager
+    mode: "0755"
+  loop:
+    - /etc/alertmanager
+    - /var/lib/alertmanager
+
+- name: Install alertmanager and amtool binaries
+  copy:
+    src: "/opt/alertmanager-{{ alertmanager_version }}.linux-{{ alertmanager_arch }}/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: true
+    mode: "0755"
+  loop:
+    - alertmanager
+    - amtool
+  when: not alertmanager_binary.stat.exists
+
+- name: Remove extracted release directory
+  file:
+    path: "/opt/alertmanager-{{ alertmanager_version }}.linux-{{ alertmanager_arch }}"
+    state: absent
+  when: not alertmanager_binary.stat.exists
+
+# A "default" receiver always has to exist for alertmanager.yml to be
+# valid; it only gets a webhook_configs entry once a target URL is given,
+# otherwise alerts land there and are silently dropped (equivalent to a
+# null receiver).
+- name: Configure alertmanager.yml
+  copy:
+    dest: /etc/alertmanager/alertmanager.yml
+    content: |
+      route:
+        receiver: default
+      receivers:
+        - name: default
+      {% if alertmanager_webhook_url | length > 0 %}
+          webhook_configs:
+            - url: "{{ alertmanager_webhook_url }}"
+      {% endif %}
+    owner: alertmanager
+    group: alertmanager
+    mode: "0644"
+  register: alertmanager_config_changed
+
+- name: Install Alertmanager systemd unit
+  copy:
+    dest: /etc/systemd/system/alertmanager.service
+    content: |
+      [Unit]
+      Description=Prometheus Alertmanager
+      After=network.target
+
+      [Service]
+      User=alertmanager
+      Group=alertmanager
+      ExecStart=/usr/local/bin/alertmanager \
+        --config.file=/etc/alertmanager/alertmanager.yml \
+        --storage.path=/var/lib/alertmanager
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: alertmanager_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: alertmanager_unit_changed.changed
+
+- name: Enable and start Alertmanager service
+  systemd:
+    name: alertmanager
+    enabled: true
+    state: started
+
+- name: Restart Alertmanager after config change
+  systemd:
+    name: alertmanager
+    state: restarted
+  when: alertmanager_config_changed.changed and not alertmanager_unit_changed.changed
+
+- name: Debug - Alertmanager installed
+  debug:
+    msg: >-
+      Alertmanager {{ alertmanager_version }} installed and running{{
+        ' (webhook: ' + alertmanager_webhook_url + ')' if alertmanager_webhook_url | length > 0 else '' }}

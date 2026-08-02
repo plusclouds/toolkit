@@ -1,0 +1,6 @@
+description: "Installs and enables Grafana Alloy via its official repo, shipping local log files to Loki (replaces Promtail, EOL 2026-03-02)."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

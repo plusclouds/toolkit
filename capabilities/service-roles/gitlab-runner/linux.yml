@@ -1,0 +1,66 @@
+---
+- name: Set GitLab Runner role defaults
+  set_fact:
+    gitlab_runner_url: "{{ service_roles['gitlab-runner'].config.gitlab_url | default('') }}"
+    gitlab_runner_registration_token: "{{ service_roles['gitlab-runner'].config.registration_token | default('') }}"
+    gitlab_runner_executor: "{{ service_roles['gitlab-runner'].config.executor | default('shell') }}"
+
+- name: Add GitLab Runner apt repository (Debian family)
+  shell: curl -L https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | bash
+  args:
+    creates: /etc/apt/sources.list.d/runner_gitlab-runner.list
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install GitLab Runner (Debian family)
+  apt:
+    name: gitlab-runner
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add GitLab Runner yum repository (RedHat family)
+  shell: curl -L https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh | bash
+  args:
+    creates: /etc/yum.repos.d/runner_gitlab-runner.repo
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install GitLab Runner (RedHat family)
+  dnf:
+    name: gitlab-runner
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start GitLab Runner service
+  systemd:
+    name: gitlab-runner
+    enabled: true
+    state: started
+
+# Registration is a one-time action against the GitLab coordinator, so this
+# only runs it when config.toml doesn't already exist - re-registering on
+# every apply would create a duplicate runner on the GitLab side.
+- name: Register GitLab Runner
+  command:
+    argv:
+      - gitlab-runner
+      - register
+      - --non-interactive
+      - --url
+      - "{{ gitlab_runner_url }}"
+      - --registration-token
+      - "{{ gitlab_runner_registration_token }}"
+      - --executor
+      - "{{ gitlab_runner_executor }}"
+      - --description
+      - "toolkit-runner"
+  args:
+    creates: /etc/gitlab-runner/config.toml
+  when: gitlab_runner_url | length > 0 and gitlab_runner_registration_token | length > 0
+  no_log: true
+
+- name: Debug - GitLab Runner installed
+  debug:
+    msg: >-
+      GitLab Runner installed and running{{
+        ' (registered against ' + gitlab_runner_url + ', executor=' + gitlab_runner_executor + ')'
+        if (gitlab_runner_url | length > 0 and gitlab_runner_registration_token | length > 0) else '' }}

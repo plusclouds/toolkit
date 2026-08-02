@@ -1,0 +1,7 @@
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, binds the HTTP API to 0.0.0.0:8086 (all interfaces) instead
+    of localhost-only. InfluxDB has no user/org/bucket configured until
+    the first-run setup (`influx setup` or the web UI) completes, so only
+    set this on a trusted internal network.

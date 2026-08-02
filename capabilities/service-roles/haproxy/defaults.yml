@@ -1,0 +1,10 @@
+frontend_port:
+  default: "80"
+  description: >-
+    Port the frontend listens on.
+backend_servers:
+  default: ""
+  description: >-
+    Comma-separated host:port targets to load-balance across (round
+    robin). Empty = the frontend serves a static "HAProxy is running"
+    placeholder response instead.

@@ -1,0 +1,92 @@
+---
+- name: Set InfluxDB role defaults
+  set_fact:
+    influxdb_bind_all_interfaces: "{{ service_roles.influxdb.config.bind_all_interfaces | default(false) }}"
+
+- name: Create apt keyrings directory (Debian family)
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download InfluxData's official GPG key (Debian family)
+  get_url:
+    url: https://repos.influxdata.com/influxdata-archive.key
+    dest: /tmp/influxdata-archive.key
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Dearmor InfluxData's GPG key (Debian family)
+  command:
+    argv:
+      - gpg
+      - --dearmor
+      - --batch
+      - --yes
+      - -o
+      - /etc/apt/keyrings/influxdata-archive.gpg
+      - /tmp/influxdata-archive.key
+  args:
+    creates: /etc/apt/keyrings/influxdata-archive.gpg
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add InfluxDB apt repository (Debian family)
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/influxdata-archive.gpg] https://repos.influxdata.com/{{ ansible_facts.distribution | lower }} stable main"
+    state: present
+    filename: influxdata
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install InfluxDB (Debian family)
+  apt:
+    name: influxdb2
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add InfluxDB yum repository (RedHat family)
+  copy:
+    dest: /etc/yum.repos.d/influxdata.repo
+    content: |
+      [influxdata]
+      name = InfluxData Repository - Stable
+      baseurl = https://repos.influxdata.com/stable/{{ ansible_facts.architecture }}/main
+      enabled = 1
+      gpgcheck = 1
+      gpgkey = https://repos.influxdata.com/influxdata-archive.key
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install InfluxDB (RedHat family)
+  dnf:
+    name: influxdb2
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Set InfluxDB bind address
+  lineinfile:
+    path: /etc/influxdb/config.toml
+    regexp: "^#?http-bind-address\\s*=.*"
+    line: 'http-bind-address = "{{ ":8086" if influxdb_bind_all_interfaces | bool else "127.0.0.1:8086" }}"'
+    create: true
+    mode: "0644"
+  register: influxdb_config_changed
+
+- name: Enable and start InfluxDB service
+  systemd:
+    name: influxdb
+    enabled: true
+    state: started
+
+- name: Restart InfluxDB after config change
+  systemd:
+    name: influxdb
+    state: restarted
+  when: influxdb_config_changed.changed | default(false)
+
+- name: Debug - InfluxDB installed
+  debug:
+    msg: >-
+      InfluxDB installed and running{{ ' (all interfaces)' if influxdb_bind_all_interfaces | bool else ' (localhost-only)' }} -
+      run `influx setup` or visit the web UI to finish initial org/bucket/user setup

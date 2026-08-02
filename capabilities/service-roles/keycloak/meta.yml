@@ -1,0 +1,6 @@
+description: "Installs Keycloak from its official release tarball. Runs in dev mode (H2) unless db_url is set, which switches to optimized production mode."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

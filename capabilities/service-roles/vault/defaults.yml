@@ -1,0 +1,6 @@
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, the :8200 listener binds to 0.0.0.0 (all interfaces) instead
+    of localhost-only. TLS isn't managed by this role (tls_disable = 1),
+    so only enable this on a trusted internal network.

@@ -1,0 +1,11 @@
+version:
+  default: "0.33.1"
+  description: >-
+    Alertmanager release to download (GitHub release tag without the
+    leading "v").
+webhook_url:
+  default: ""
+  description: >-
+    Webhook URL alerts are routed to via the default receiver's
+    webhook_configs. Empty = alerts land on a receiver with no
+    integrations configured (equivalent to a null receiver).

@@ -1,0 +1,51 @@
+---
+- name: Set Mosquitto role defaults
+  set_fact:
+    mosquitto_bind_all_interfaces: "{{ service_roles.mosquitto.config.bind_all_interfaces | default(false) }}"
+    mosquitto_allow_anonymous: "{{ service_roles.mosquitto.config.allow_anonymous | default(false) }}"
+
+- name: Install Mosquitto (Debian family)
+  apt:
+    name:
+      - mosquitto
+      - mosquitto-clients
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Mosquitto (RedHat family)
+  dnf:
+    name: mosquitto
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# The stock mosquitto.conf ships with no explicit listener directive, so
+# this conf.d drop-in makes the bind address and auth policy explicit
+# rather than relying on undocumented packaging defaults.
+- name: Configure Mosquitto listener
+  copy:
+    dest: /etc/mosquitto/conf.d/toolkit.conf
+    content: |
+      listener 1883 {{ '0.0.0.0' if mosquitto_bind_all_interfaces | bool else '127.0.0.1' }}
+      allow_anonymous {{ mosquitto_allow_anonymous | bool | lower }}
+    mode: "0644"
+  register: mosquitto_config_changed
+
+- name: Enable and start Mosquitto service
+  systemd:
+    name: mosquitto
+    enabled: true
+    state: started
+
+- name: Restart Mosquitto after config change
+  systemd:
+    name: mosquitto
+    state: restarted
+  when: mosquitto_config_changed.changed | default(false)
+
+- name: Debug - Mosquitto installed
+  debug:
+    msg: >-
+      Mosquitto installed and running{{
+        ' (all interfaces)' if mosquitto_bind_all_interfaces | bool else ' (localhost-only)' }}{{
+        ' (anonymous access allowed)' if mosquitto_allow_anonymous | bool else '' }}

@@ -1,0 +1,11 @@
+admin_password:
+  default: ""
+  description: >-
+    Password to set for the Grafana 'admin' account via grafana.ini.
+    Empty = leave the package's default admin credentials in place.
+root_url:
+  default: ""
+  description: >-
+    Value for grafana.ini's [server] root_url, needed when Grafana sits
+    behind a reverse proxy on a subpath or non-default domain. Empty =
+    leave the package's default (http://localhost:3000/) in place.

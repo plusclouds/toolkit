@@ -1,0 +1,13 @@
+version:
+  default: "1.14.6"
+  description: >-
+    CoreDNS release to download (GitHub release tag without the leading
+    "v").
+port:
+  default: "53"
+  description: >-
+    Port CoreDNS listens on for DNS queries.
+forwarders:
+  default: "1.1.1.1,1.0.0.1"
+  description: >-
+    Comma-separated upstream DNS resolvers queries are forwarded to.

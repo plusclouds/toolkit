@@ -1,0 +1,69 @@
+---
+# MinIO doesn't publish a hosted apt/dnf repo, but does publish direct
+# .deb/.rpm downloads at a stable URL - apt/dnf can install straight from
+# that URL, so this avoids the GPG-key-and-repo dance the other official-
+# repo roles need.
+- name: Set MinIO role defaults
+  set_fact:
+    minio_volume_path: "{{ service_roles.minio.config.volume_path | default('/var/lib/minio') }}"
+    minio_console_port: "{{ service_roles.minio.config.console_port | default('9001') }}"
+    minio_root_user: "{{ service_roles.minio.config.root_user | default('') }}"
+    minio_root_password: "{{ service_roles.minio.config.root_password | default('') }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    minio_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Install MinIO (Debian family)
+  apt:
+    deb: "https://dl.min.io/server/minio/release/linux-{{ minio_arch }}/minio.deb"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install MinIO (RedHat family)
+  dnf:
+    name: "https://dl.min.io/server/minio/release/linux-{{ minio_arch }}/minio.rpm"
+    state: present
+    disable_gpg_check: true
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Create MinIO data volume directory
+  file:
+    path: "{{ minio_volume_path }}"
+    state: directory
+    owner: minio-user
+    group: minio-user
+    mode: "0750"
+
+- name: Configure /etc/default/minio
+  copy:
+    dest: /etc/default/minio
+    content: |
+      MINIO_VOLUMES="{{ minio_volume_path }}"
+      MINIO_OPTS="--console-address :{{ minio_console_port }}"
+      {% if minio_root_user | length > 0 %}
+      MINIO_ROOT_USER={{ minio_root_user }}
+      MINIO_ROOT_PASSWORD={{ minio_root_password }}
+      {% endif %}
+    owner: root
+    group: minio-user
+    mode: "0640"
+  register: minio_config_changed
+  no_log: true
+
+- name: Enable and start MinIO service
+  systemd:
+    name: minio
+    enabled: true
+    state: started
+
+- name: Restart MinIO after config change
+  systemd:
+    name: minio
+    state: restarted
+  when: minio_config_changed.changed | default(false)
+
+- name: Debug - MinIO installed
+  debug:
+    msg: >-
+      MinIO installed and running (volume: {{ minio_volume_path }}, console :{{ minio_console_port }}){{
+        ' (root_user: ' + minio_root_user + ')' if minio_root_user | length > 0 else ' (auto-generated root credential, see journalctl -u minio)' }}

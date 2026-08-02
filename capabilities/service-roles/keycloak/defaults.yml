@@ -1,0 +1,37 @@
+version:
+  default: "26.7.0"
+  description: >-
+    Keycloak release to download (GitHub release tag).
+admin_username:
+  default: ""
+  description: >-
+    Bootstrap admin username, only applied on the very first start (before
+    the master realm exists). Defaults to "admin" if admin_password is set
+    but this is left empty.
+admin_password:
+  default: ""
+  description: >-
+    Bootstrap admin password. Empty = no admin account is created
+    automatically; use `kc.sh bootstrap-admin` manually later instead.
+db_url:
+  default: ""
+  description: >-
+    JDBC URL of a PostgreSQL database (e.g.
+    "jdbc:postgresql://localhost/keycloak"). Empty = Keycloak runs in
+    dev mode with its embedded H2 database (not for production use).
+    Setting this switches to `kc.sh start --optimized` and requires
+    hostname to also be set.
+db_username:
+  default: ""
+  description: >-
+    Database username. Only used when db_url is set.
+db_password:
+  default: ""
+  description: >-
+    Database password. Only used when db_url is set.
+hostname:
+  default: ""
+  description: >-
+    Public hostname Keycloak advertises (e.g. "auth.example.com").
+    REQUIRED when db_url is set - Keycloak's production/optimized mode
+    refuses to start without an explicit hostname.

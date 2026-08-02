@@ -1,0 +1,155 @@
+---
+- name: Set Keycloak role defaults
+  set_fact:
+    keycloak_version: "{{ service_roles.keycloak.config.version | default('26.7.0') }}"
+    keycloak_admin_username: "{{ service_roles.keycloak.config.admin_username | default('') }}"
+    keycloak_admin_password: "{{ service_roles.keycloak.config.admin_password | default('') }}"
+    keycloak_db_url: "{{ service_roles.keycloak.config.db_url | default('') }}"
+    keycloak_db_username: "{{ service_roles.keycloak.config.db_username | default('') }}"
+    keycloak_db_password: "{{ service_roles.keycloak.config.db_password | default('') }}"
+    keycloak_hostname: "{{ service_roles.keycloak.config.hostname | default('') }}"
+
+# Keycloak's production/optimized mode refuses to start without an
+# explicit hostname - dev mode doesn't need one, so this is only a hard
+# requirement once db_url opts into production mode.
+- name: Fail if db_url is set without hostname
+  fail:
+    msg: >-
+      service_roles.keycloak.config.hostname is required when db_url is
+      set - Keycloak's production mode refuses to start without an
+      explicit hostname.
+  when: keycloak_db_url | length > 0 and keycloak_hostname | length == 0
+
+- name: Install Java prerequisite (Debian family)
+  apt:
+    name: openjdk-21-jre-headless
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Java prerequisite (RedHat family)
+  dnf:
+    name: java-21-openjdk
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Check if Keycloak is already extracted
+  stat:
+    path: "/opt/keycloak-{{ keycloak_version }}"
+  register: keycloak_extracted
+
+- name: Set Keycloak release URL
+  set_fact:
+    keycloak_release_url: >-
+      {{ 'https://github.com/keycloak/keycloak/releases/download/' ~
+         keycloak_version ~ '/keycloak-' ~ keycloak_version ~ '.tar.gz' }}
+
+- name: Download and extract Keycloak release
+  unarchive:
+    src: "{{ keycloak_release_url }}"
+    dest: /opt
+    remote_src: true
+  when: not keycloak_extracted.stat.exists
+
+- name: Symlink /opt/keycloak to the extracted release
+  file:
+    src: "/opt/keycloak-{{ keycloak_version }}"
+    dest: /opt/keycloak
+    state: link
+    force: true
+
+- name: Create keycloak system group
+  group:
+    name: keycloak
+    system: true
+    state: present
+
+- name: Create keycloak system user
+  user:
+    name: keycloak
+    group: keycloak
+    system: true
+    shell: /usr/sbin/nologin
+    home: /opt/keycloak
+    create_home: false
+    state: present
+
+- name: Own the extracted Keycloak release
+  file:
+    path: "/opt/keycloak-{{ keycloak_version }}"
+    owner: keycloak
+    group: keycloak
+    recurse: true
+  when: not keycloak_extracted.stat.exists
+
+# keycloak.conf only needs the production DB settings - dev mode (no
+# db_url) is Keycloak's own zero-config default (embedded H2), so an
+# empty conf file is intentional there rather than an oversight.
+- name: Configure keycloak.conf
+  copy:
+    dest: /opt/keycloak/conf/keycloak.conf
+    content: |
+      {% if keycloak_db_url | length > 0 %}
+      db=postgres
+      db-url={{ keycloak_db_url }}
+      db-username={{ keycloak_db_username }}
+      db-password={{ keycloak_db_password }}
+      hostname={{ keycloak_hostname }}
+      {% endif %}
+    owner: keycloak
+    group: keycloak
+    mode: "0640"
+  register: keycloak_config_changed
+  no_log: true
+
+- name: Build optimized Keycloak runtime (production mode)
+  command: /opt/keycloak/bin/kc.sh build
+  when: keycloak_db_url | length > 0 and keycloak_config_changed.changed
+  changed_when: true
+
+- name: Install Keycloak systemd unit
+  copy:
+    dest: /etc/systemd/system/keycloak.service
+    content: |
+      [Unit]
+      Description=Keycloak
+      After=network.target
+
+      [Service]
+      User=keycloak
+      Group=keycloak
+      {% if keycloak_admin_password | length > 0 %}
+      Environment=KC_BOOTSTRAP_ADMIN_USERNAME={{ keycloak_admin_username if keycloak_admin_username | length > 0 else 'admin' }}
+      Environment=KC_BOOTSTRAP_ADMIN_PASSWORD={{ keycloak_admin_password }}
+      {% endif %}
+      ExecStart=/opt/keycloak/bin/kc.sh {{ 'start --optimized' if keycloak_db_url | length > 0 else 'start-dev' }}
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: keycloak_unit_changed
+  no_log: true
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: keycloak_unit_changed.changed
+
+- name: Enable and start Keycloak service
+  systemd:
+    name: keycloak
+    enabled: true
+    state: started
+
+- name: Restart Keycloak after config change
+  systemd:
+    name: keycloak
+    state: restarted
+  when: keycloak_config_changed.changed or keycloak_unit_changed.changed
+
+- name: Debug - Keycloak installed
+  debug:
+    msg: >-
+      Keycloak {{ keycloak_version }} installed and running in {{
+        'production (optimized, hostname=' + keycloak_hostname + ')' if keycloak_db_url | length > 0 else 'dev (H2, not for production)' }} mode

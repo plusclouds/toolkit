@@ -1,0 +1,11 @@
+memory_limit:
+  default: ""
+  description: >-
+    php.ini memory_limit override, written to a 99-toolkit.ini drop-in
+    (e.g. "256M"). Empty = leave the package's default in place.
+upload_max_filesize:
+  default: ""
+  description: >-
+    php.ini upload_max_filesize override (also applied to post_max_size),
+    written to the same drop-in (e.g. "64M"). Empty = leave the package's
+    default in place.

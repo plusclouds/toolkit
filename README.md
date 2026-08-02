@@ -7,7 +7,7 @@ Shared, versioned repository of cross-platform automation scripts used across Pl
 - `capabilities/<name>/{linux.yml, windows.ps1, macos.sh}` — the actual guest-facing operations (change password, change hostname, apply SSH keys, disk resize, etc.), one directory per capability, OS variants side by side so they get reviewed and versioned together instead of drifting apart.
 - `capabilities/service-roles/<name>/linux.yml` — service roles (mysql, postgresql, tailscale, ...) a VM can opt into. Each directory's name is the catalog key `NextDeveloper/IAAS`'s `iaas_ansible_roles` table syncs against 1:1 — see `meta.yml` below and `AnsibleRolesService::syncFromToolkit()`.
 - `capabilities/service-roles/<name>/meta.yml` — a one-line `description:` for that role, synced into `iaas_ansible_roles.description` by the same job. Required for every service role (not just cosmetic — the sync job reads it). Also carries `supported_os:`, the list of distro/version combinations the role's `linux.yml` has been written and tested against — keep it in sync with whatever `ansible_facts.os_family`/`ansible_facts.distribution` branches (or their absence) actually cover.
-- `capabilities/service-roles/<name>/defaults.yml` — every `service_roles.<name>.config.*` key the role's `linux.yml` reads, mapped to its default value, synced into `iaas_ansible_roles.config`. Optional (omit it for a role that takes no config), but keep it in lockstep with whatever `linux.yml` actually reads via `| default(...)` — this is the only way a customer can discover what to put in `service_roles.<name>.config` short of reading this repo.
+- `capabilities/service-roles/<name>/defaults.yml` — every `service_roles.<name>.config.*` key the role's `linux.yml` reads. Each key maps to `{default: ..., description: ...}`, synced verbatim into `iaas_ansible_roles.config` in that nested shape — the customer panel's service-role picker reads `config[key].default`/`config[key].description` straight off it, and `AnsibleRolesService::resolveForVirtualMachine()` flattens it to plain `{key: default}` before it ever reaches a VM. Optional (omit it for a role that takes no config), but keep it in lockstep with whatever `linux.yml` actually reads via `| default(...)` — this is the only way a customer can discover what to put in `service_roles.<name>.config` short of reading this repo.
 - `agents/<agent>/` — bootstrap/installer material for a specific agent (install scripts, systemd units, config templates). Not a "capability" a customer triggers directly — this is what gets an agent running on a host in the first place.
 - `manifest.json` — generated at release time by `scripts/generate-manifest.sh`: every file's sha256, so consumers can verify integrity before executing anything pulled from a release asset.
 
@@ -45,6 +45,29 @@ Optional daemons a VM can opt into via `service_roles.<name>.config` — see `ca
 | `tailscale` | Installs Tailscale, optionally joining your tailnet automatically when an auth key is provided. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `fail2ban` | Installs and enables Fail2ban, optionally overriding the default ban time and retry threshold. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `ufw` | Installs and enables UFW, applying default incoming/outgoing policies and a port allowlist before enabling. | Ubuntu 22.04/24.04, Debian 12 (not packaged for RedHat family) |
+| `grafana` | Installs and enables Grafana from its official repo, optionally setting the admin password and root URL. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `prometheus` | Installs Prometheus from its official release binary, optionally scraping extra targets and setting retention. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `alertmanager` | Installs Alertmanager from its official release binary, optionally routing alerts to a webhook. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `loki` | Installs Loki from its official release binary, using local filesystem storage. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `gitlab-runner` | Installs GitLab Runner from its official repo, optionally registering it against a GitLab instance. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `php-fpm` | Installs and enables PHP-FPM, optionally overriding memory_limit and upload_max_filesize. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `node_exporter` | Installs node_exporter from its official release binary, for Prometheus to scrape host metrics. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `alloy` | Installs Grafana Alloy from its official repo, shipping local log files to Loki (Promtail's supported replacement). | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `rabbitmq` | Installs and enables RabbitMQ, optionally enabling the management UI and creating an administrator user. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `mosquitto` | Installs and enables the Mosquitto MQTT broker, configuring its listener bind address and anonymous-access policy. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `nats-server` | Installs NATS Server from its official release binary, optionally enabling JetStream persistence. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `haproxy` | Installs and enables HAProxy, optionally load-balancing a frontend port across a list of backend servers. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `vault` | Installs and enables HashiCorp Vault from its official repo, with file storage and TLS disabled for internal-network use. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `minio` | Installs and enables MinIO object storage from its official package, configuring the data volume and console port. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `jenkins` | Installs and enables Jenkins from its official repo (plus its Java prerequisite), optionally changing the HTTP port. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `mongodb` | Installs and enables MongoDB Community Edition from its official repo, optionally binding to all interfaces. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `elasticsearch` | Installs and enables Elasticsearch from its official repo, applying the required vm.max_map_count sysctl. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `opensearch` | Installs and enables OpenSearch from its official repo, applying the required vm.max_map_count sysctl. Requires admin_password. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `influxdb` | Installs and enables InfluxDB 2.x from its official repo, optionally binding to all interfaces. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `coredns` | Installs CoreDNS from its official release binary, forwarding queries to configurable upstream resolvers. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `bind9` | Installs and enables BIND9 as a caching/forwarding DNS resolver, configuring upstream forwarders and the query allowlist. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `kafka` | Installs Apache Kafka (KRaft mode, no ZooKeeper) from its official release tarball, as a single combined broker+controller node. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `keycloak` | Installs Keycloak from its official release tarball. Runs in dev mode unless db_url is set, which switches to optimized production mode. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 
 ## Consuming this repo
 

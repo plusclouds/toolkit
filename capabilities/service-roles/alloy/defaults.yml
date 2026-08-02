@@ -1,0 +1,10 @@
+loki_url:
+  default: "http://localhost:3100/loki/api/v1/push"
+  description: >-
+    Loki push API endpoint Alloy ships collected logs to. Defaults to a
+    Loki instance co-located on the same host (see the loki service role).
+log_paths:
+  default: "/var/log/*.log"
+  description: >-
+    Comma-separated glob patterns of log files to tail and forward to
+    Loki.

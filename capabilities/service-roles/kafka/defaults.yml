@@ -1,0 +1,13 @@
+version:
+  default: "4.3.1"
+  description: >-
+    Kafka release to download (Scala 2.13 build, from
+    downloads.apache.org).
+node_id:
+  default: "1"
+  description: >-
+    KRaft node.id for this single combined broker+controller node.
+heap_size:
+  default: "1G"
+  description: >-
+    KAFKA_HEAP_OPTS -Xms/-Xmx value (e.g. "2G").

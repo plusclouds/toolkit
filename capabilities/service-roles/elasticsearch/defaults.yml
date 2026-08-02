@@ -1,0 +1,11 @@
+heap_size:
+  default: "1g"
+  description: >-
+    JVM -Xms/-Xmx heap size, written to a jvm.options.d drop-in (e.g.
+    "2g"). Keep this at roughly half the host's RAM per Elasticsearch's
+    own guidance.
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, sets network.host to 0.0.0.0 (all interfaces) instead of
+    localhost-only.

@@ -1,0 +1,18 @@
+gitlab_url:
+  default: ""
+  description: >-
+    Base URL of the GitLab coordinator instance to register against (e.g.
+    "https://gitlab.example.com/"). Required alongside registration_token
+    for unattended registration; empty = runner installs but stays
+    unregistered.
+registration_token:
+  default: ""
+  description: >-
+    Registration token from the GitLab instance's Runners settings. Only
+    used when gitlab_url is also set; registration only runs once
+    (skipped if /etc/gitlab-runner/config.toml already exists).
+executor:
+  default: "shell"
+  description: >-
+    Executor passed to `gitlab-runner register` (e.g. "shell", "docker").
+    Only used when registration actually runs.

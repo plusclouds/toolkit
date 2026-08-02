@@ -1,0 +1,12 @@
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, the 1883 listener binds to 0.0.0.0 (all interfaces) instead
+    of localhost-only.
+allow_anonymous:
+  default: false
+  description: >-
+    If true, allows unauthenticated MQTT connections. Only set this to
+    true alongside bind_all_interfaces=false, or with a password file
+    configured separately - an unauthenticated broker exposed to the
+    network is an open door.

@@ -1,0 +1,6 @@
+description: "Installs CoreDNS as a systemd service from its official GitHub release binary, forwarding queries to configurable upstream resolvers."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

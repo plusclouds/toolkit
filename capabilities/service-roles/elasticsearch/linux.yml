@@ -1,0 +1,114 @@
+---
+- name: Set Elasticsearch role defaults
+  set_fact:
+    elasticsearch_heap_size: "{{ service_roles.elasticsearch.config.heap_size | default('1g') }}"
+    elasticsearch_bind_all_interfaces: "{{ service_roles.elasticsearch.config.bind_all_interfaces | default(false) }}"
+
+# Elasticsearch refuses to start below this limit (mmap-based storage) -
+# it's a hard requirement, not a tunable preference.
+- name: Set vm.max_map_count for Elasticsearch
+  sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-elasticsearch.conf
+    reload: true
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - apt-transport-https
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download Elastic's official GPG key (Debian family)
+  get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /tmp/elasticsearch-gpg.key
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Dearmor Elastic's GPG key (Debian family)
+  command:
+    argv:
+      - gpg
+      - --dearmor
+      - --batch
+      - --yes
+      - -o
+      - /usr/share/keyrings/elasticsearch-keyring.gpg
+      - /tmp/elasticsearch-gpg.key
+  args:
+    creates: /usr/share/keyrings/elasticsearch-keyring.gpg
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Elasticsearch apt repository (Debian family)
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/9.x/apt stable main"
+    state: present
+    filename: elastic-9.x
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Elasticsearch (Debian family)
+  apt:
+    name: elasticsearch
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Elasticsearch yum repository (RedHat family)
+  copy:
+    dest: /etc/yum.repos.d/elasticsearch.repo
+    content: |
+      [elasticsearch]
+      name=Elasticsearch repository for 9.x packages
+      baseurl=https://artifacts.elastic.co/packages/9.x/yum
+      gpgcheck=1
+      gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+      enabled=1
+      autorefresh=1
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Elasticsearch (RedHat family)
+  dnf:
+    name: elasticsearch
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Configure Elasticsearch JVM heap size
+  copy:
+    dest: /etc/elasticsearch/jvm.options.d/toolkit.options
+    content: |
+      -Xms{{ elasticsearch_heap_size }}
+      -Xmx{{ elasticsearch_heap_size }}
+    mode: "0644"
+  register: elasticsearch_heap_changed
+
+- name: Set Elasticsearch bind address
+  lineinfile:
+    path: /etc/elasticsearch/elasticsearch.yml
+    regexp: "^#?network\\.host:.*"
+    line: "network.host: {{ '0.0.0.0' if elasticsearch_bind_all_interfaces | bool else '127.0.0.1' }}"
+  register: elasticsearch_bind_changed
+
+- name: Enable and start Elasticsearch service
+  systemd:
+    name: elasticsearch
+    enabled: true
+    state: started
+
+- name: Restart Elasticsearch after config change
+  systemd:
+    name: elasticsearch
+    state: restarted
+  when: (elasticsearch_heap_changed.changed | default(false)) or (elasticsearch_bind_changed.changed | default(false))
+
+- name: Debug - Elasticsearch installed
+  debug:
+    msg: >-
+      Elasticsearch installed and running (heap={{ elasticsearch_heap_size }}) -
+      auto-generated elastic superuser password and enrollment token were
+      printed to the journal on first start (journalctl -u elasticsearch)

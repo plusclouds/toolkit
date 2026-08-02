@@ -1,0 +1,6 @@
+description: "Installs and enables BIND9 as a caching/forwarding DNS resolver, configuring upstream forwarders and the query allowlist."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

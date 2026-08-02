@@ -1,0 +1,6 @@
+description: "Installs Apache Kafka (KRaft mode, no ZooKeeper) from its official release tarball, as a single combined broker+controller node."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

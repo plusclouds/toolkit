@@ -1,0 +1,10 @@
+version:
+  default: "2.14.3"
+  description: >-
+    NATS Server release to download (GitHub release tag without the
+    leading "v").
+jetstream_enabled:
+  default: false
+  description: >-
+    If true, enables JetStream (persistent streaming/storage), with data
+    kept under /var/lib/nats/jetstream.

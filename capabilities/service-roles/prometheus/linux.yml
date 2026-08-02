@@ -1,0 +1,156 @@
+---
+# No apt/dnf package covers every supported distro consistently, so this
+# installs the official GitHub release binary directly, same approach as
+# capabilities/service-roles/traefik/linux.yml uses for Traefik.
+- name: Set Prometheus role defaults
+  set_fact:
+    prometheus_version: "{{ service_roles.prometheus.config.version | default('3.13.1') }}"
+    prometheus_retention: "{{ service_roles.prometheus.config.retention | default('15d') }}"
+    prometheus_scrape_targets: "{{ service_roles.prometheus.config.scrape_targets | default('') }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    prometheus_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Check if Prometheus binary is already installed
+  stat:
+    path: /usr/local/bin/prometheus
+  register: prometheus_binary
+
+- name: Set Prometheus release URL
+  set_fact:
+    prometheus_release_url: >-
+      {{ 'https://github.com/prometheus/prometheus/releases/download/v' ~
+         prometheus_version ~ '/prometheus-' ~ prometheus_version ~
+         '.linux-' ~ prometheus_arch ~ '.tar.gz' }}
+
+- name: Download and extract Prometheus release
+  unarchive:
+    src: "{{ prometheus_release_url }}"
+    dest: /opt
+    remote_src: true
+  when: not prometheus_binary.stat.exists
+
+- name: Create prometheus system group
+  group:
+    name: prometheus
+    system: true
+    state: present
+
+- name: Create prometheus system user
+  user:
+    name: prometheus
+    group: prometheus
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/prometheus
+    create_home: false
+    state: present
+
+- name: Create Prometheus config/data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+  loop:
+    - /etc/prometheus
+    - /var/lib/prometheus
+
+- name: Install prometheus and promtool binaries
+  copy:
+    src: "/opt/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: true
+    mode: "0755"
+  loop:
+    - prometheus
+    - promtool
+  when: not prometheus_binary.stat.exists
+
+- name: Install Prometheus console templates
+  copy:
+    src: "/opt/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}/{{ item }}"
+    dest: "/etc/prometheus/"
+    remote_src: true
+    owner: prometheus
+    group: prometheus
+  loop:
+    - consoles
+    - console_libraries
+  when: not prometheus_binary.stat.exists
+
+- name: Remove extracted release directory
+  file:
+    path: "/opt/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}"
+    state: absent
+  when: not prometheus_binary.stat.exists
+
+- name: Configure prometheus.yml
+  copy:
+    dest: /etc/prometheus/prometheus.yml
+    content: |
+      global:
+        scrape_interval: 15s
+
+      scrape_configs:
+        - job_name: prometheus
+          static_configs:
+            - targets: ["localhost:9090"]
+      {% if prometheus_scrape_targets | length > 0 %}
+        - job_name: toolkit
+          static_configs:
+            - targets: {{ prometheus_scrape_targets.split(',') | map('trim') | reject('equalto', '') | list | to_json }}
+      {% endif %}
+    owner: prometheus
+    group: prometheus
+    mode: "0644"
+  register: prometheus_config_changed
+
+- name: Install Prometheus systemd unit
+  copy:
+    dest: /etc/systemd/system/prometheus.service
+    content: |
+      [Unit]
+      Description=Prometheus monitoring
+      After=network.target
+
+      [Service]
+      User=prometheus
+      Group=prometheus
+      ExecStart=/usr/local/bin/prometheus \
+        --config.file=/etc/prometheus/prometheus.yml \
+        --storage.tsdb.path=/var/lib/prometheus \
+        --storage.tsdb.retention.time={{ prometheus_retention }} \
+        --web.console.templates=/etc/prometheus/consoles \
+        --web.console.libraries=/etc/prometheus/console_libraries
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: prometheus_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: prometheus_unit_changed.changed
+
+- name: Enable and start Prometheus service
+  systemd:
+    name: prometheus
+    enabled: true
+    state: started
+
+- name: Restart Prometheus after config change
+  systemd:
+    name: prometheus
+    state: restarted
+  when: prometheus_config_changed.changed and not prometheus_unit_changed.changed
+
+- name: Debug - Prometheus installed
+  debug:
+    msg: >-
+      Prometheus {{ prometheus_version }} installed and running (retention={{ prometheus_retention }}){{
+        ', scraping: ' + prometheus_scrape_targets if prometheus_scrape_targets | length > 0 else '' }}

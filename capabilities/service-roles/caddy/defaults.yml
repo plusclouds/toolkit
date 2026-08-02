@@ -1,2 +1,12 @@
-domain: ""
-reverse_proxy_target: ""
+domain:
+  default: ""
+  description: >-
+    Domain the Caddyfile is written for (enables Caddy's automatic HTTPS).
+    Empty = Caddy stays installed but unconfigured (default Caddyfile
+    untouched).
+reverse_proxy_target:
+  default: ""
+  description: >-
+    Upstream address Caddy reverse-proxies to (e.g. "localhost:3000").
+    Only used when domain is set; empty = domain serves a static
+    "Caddy is running" placeholder response instead.

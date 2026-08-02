@@ -1,0 +1,6 @@
+description: "Installs and enables RabbitMQ via the guest's package manager, optionally enabling the management UI and creating an administrator user."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

@@ -1,1 +1,5 @@
-server_name: ""
+server_name:
+  default: ""
+  description: >-
+    Hostname(s) written into the default site's server_name directive.
+    Empty = leave the package's default server block untouched.

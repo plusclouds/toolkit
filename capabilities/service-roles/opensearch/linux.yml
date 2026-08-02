@@ -1,0 +1,120 @@
+---
+- name: Set OpenSearch role defaults
+  set_fact:
+    opensearch_admin_password: "{{ service_roles.opensearch.config.admin_password | default('') }}"
+    opensearch_bind_all_interfaces: "{{ service_roles.opensearch.config.bind_all_interfaces | default(false) }}"
+
+# OpenSearch's security plugin demo config refuses to complete installation
+# without OPENSEARCH_INITIAL_ADMIN_PASSWORD set, unlike every other
+# optional-password role in this repo - so this fails fast with a clear
+# message instead of leaving a half-installed package behind.
+- name: Fail if admin_password is not set
+  fail:
+    msg: >-
+      service_roles.opensearch.config.admin_password is required -
+      OpenSearch's security plugin cannot complete installation without an
+      initial admin password (8+ chars, upper, lower, digit, special char).
+  when: opensearch_admin_password | length == 0
+
+# Same hard requirement as Elasticsearch - OpenSearch also uses mmap-based
+# storage and refuses to start below this limit.
+- name: Set vm.max_map_count for OpenSearch
+  sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-opensearch.conf
+    reload: true
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download OpenSearch's official GPG key (Debian family)
+  get_url:
+    url: https://artifacts.opensearch.org/publickeys/opensearch.pgp
+    dest: /tmp/opensearch.pgp
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Dearmor OpenSearch's GPG key (Debian family)
+  command:
+    argv:
+      - gpg
+      - --dearmor
+      - --batch
+      - --yes
+      - -o
+      - /usr/share/keyrings/opensearch-keyring.gpg
+      - /tmp/opensearch.pgp
+  args:
+    creates: /usr/share/keyrings/opensearch-keyring.gpg
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add OpenSearch apt repository (Debian family)
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/opensearch-keyring.gpg] https://artifacts.opensearch.org/releases/bundle/opensearch/3.x/apt stable main"
+    state: present
+    filename: opensearch-3.x
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install OpenSearch (Debian family)
+  apt:
+    name: opensearch
+    state: present
+    update_cache: true
+  environment:
+    OPENSEARCH_INITIAL_ADMIN_PASSWORD: "{{ opensearch_admin_password }}"
+  when: ansible_facts.os_family == "Debian"
+  no_log: true
+
+- name: Add OpenSearch yum repository (RedHat family)
+  copy:
+    dest: /etc/yum.repos.d/opensearch.repo
+    content: |
+      [opensearch]
+      name=OpenSearch repository for 3.x packages
+      baseurl=https://artifacts.opensearch.org/releases/bundle/opensearch/3.x/yum
+      gpgcheck=1
+      gpgkey=https://artifacts.opensearch.org/publickeys/opensearch.pgp
+      enabled=1
+      autorefresh=1
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install OpenSearch (RedHat family)
+  dnf:
+    name: opensearch
+    state: present
+  environment:
+    OPENSEARCH_INITIAL_ADMIN_PASSWORD: "{{ opensearch_admin_password }}"
+  when: ansible_facts.os_family == "RedHat"
+  no_log: true
+
+- name: Set OpenSearch bind address
+  lineinfile:
+    path: /etc/opensearch/opensearch.yml
+    regexp: "^#?network\\.host:.*"
+    line: "network.host: {{ '0.0.0.0' if opensearch_bind_all_interfaces | bool else '127.0.0.1' }}"
+  register: opensearch_config_changed
+
+- name: Enable and start OpenSearch service
+  systemd:
+    name: opensearch
+    enabled: true
+    state: started
+
+- name: Restart OpenSearch after config change
+  systemd:
+    name: opensearch
+    state: restarted
+  when: opensearch_config_changed.changed | default(false)
+
+- name: Debug - OpenSearch installed
+  debug:
+    msg: "OpenSearch installed and running (admin user configured)"

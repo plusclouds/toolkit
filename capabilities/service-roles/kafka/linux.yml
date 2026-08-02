@@ -1,0 +1,165 @@
+---
+# Kafka 4.x removed ZooKeeper entirely, so this sets up a single-node
+# KRaft cluster (combined broker+controller roles) - no separate
+# coordination service to install or manage.
+- name: Set Kafka role defaults
+  set_fact:
+    kafka_version: "{{ service_roles.kafka.config.version | default('4.3.1') }}"
+    kafka_node_id: "{{ service_roles.kafka.config.node_id | default('1') }}"
+    kafka_heap_size: "{{ service_roles.kafka.config.heap_size | default('1G') }}"
+
+- name: Install Java prerequisite (Debian family)
+  apt:
+    name: openjdk-21-jre-headless
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Java prerequisite (RedHat family)
+  dnf:
+    name: java-21-openjdk
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Check if Kafka is already extracted
+  stat:
+    path: "/opt/kafka_2.13-{{ kafka_version }}"
+  register: kafka_extracted
+
+- name: Set Kafka release URL
+  set_fact:
+    kafka_release_url: >-
+      {{ 'https://downloads.apache.org/kafka/' ~ kafka_version ~
+         '/kafka_2.13-' ~ kafka_version ~ '.tgz' }}
+
+- name: Download and extract Kafka release
+  unarchive:
+    src: "{{ kafka_release_url }}"
+    dest: /opt
+    remote_src: true
+  when: not kafka_extracted.stat.exists
+
+- name: Symlink /opt/kafka to the extracted release
+  file:
+    src: "/opt/kafka_2.13-{{ kafka_version }}"
+    dest: /opt/kafka
+    state: link
+    force: true
+
+- name: Create kafka system group
+  group:
+    name: kafka
+    system: true
+    state: present
+
+- name: Create kafka system user
+  user:
+    name: kafka
+    group: kafka
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/kafka
+    create_home: false
+    state: present
+
+- name: Create Kafka log directory
+  file:
+    path: /var/lib/kafka
+    state: directory
+    owner: kafka
+    group: kafka
+    mode: "0755"
+
+- name: Configure Kafka KRaft server.properties
+  copy:
+    dest: /opt/kafka/config/server.properties
+    content: |
+      process.roles=broker,controller
+      node.id={{ kafka_node_id }}
+      controller.quorum.voters={{ kafka_node_id }}@localhost:9093
+      listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+      inter.broker.listener.name=PLAINTEXT
+      controller.listener.names=CONTROLLER
+      listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      log.dirs=/var/lib/kafka
+      num.partitions=1
+      offsets.topic.replication.factor=1
+      transaction.state.log.replication.factor=1
+      transaction.state.log.min.isr=1
+    owner: kafka
+    group: kafka
+    mode: "0644"
+  register: kafka_config_changed
+
+- name: Check if Kafka storage is already formatted
+  stat:
+    path: /var/lib/kafka/meta.properties
+  register: kafka_meta_properties
+
+- name: Generate Kafka cluster UUID
+  command: /opt/kafka/bin/kafka-storage.sh random-uuid
+  register: kafka_cluster_uuid
+  when: not kafka_meta_properties.stat.exists
+  changed_when: false
+
+# Formatting runs as root (matching how every other task in this file
+# runs), which leaves the written meta.properties/log files root-owned -
+# so ownership needs fixing up afterward for the kafka user (Service
+# User=kafka in the systemd unit below) to actually be able to use them.
+- name: Format Kafka storage directory
+  command: >-
+    /opt/kafka/bin/kafka-storage.sh format
+    -t {{ kafka_cluster_uuid.stdout }}
+    -c /opt/kafka/config/server.properties
+  when: not kafka_meta_properties.stat.exists
+
+- name: Fix ownership of Kafka log directory after formatting
+  file:
+    path: /var/lib/kafka
+    state: directory
+    owner: kafka
+    group: kafka
+    recurse: true
+  when: not kafka_meta_properties.stat.exists
+
+- name: Install Kafka systemd unit
+  copy:
+    dest: /etc/systemd/system/kafka.service
+    content: |
+      [Unit]
+      Description=Apache Kafka (KRaft mode)
+      After=network.target
+
+      [Service]
+      User=kafka
+      Group=kafka
+      Environment=KAFKA_HEAP_OPTS=-Xms{{ kafka_heap_size }} -Xmx{{ kafka_heap_size }}
+      ExecStart=/opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+      ExecStop=/opt/kafka/bin/kafka-server-stop.sh
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: kafka_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: kafka_unit_changed.changed
+
+- name: Enable and start Kafka service
+  systemd:
+    name: kafka
+    enabled: true
+    state: started
+
+- name: Restart Kafka after config change
+  systemd:
+    name: kafka
+    state: restarted
+  when: kafka_config_changed.changed and not kafka_unit_changed.changed
+
+- name: Debug - Kafka installed
+  debug:
+    msg: "Kafka {{ kafka_version }} installed and running (KRaft, node.id={{ kafka_node_id }}, heap={{ kafka_heap_size }})"

@@ -1,0 +1,16 @@
+version:
+  default: "3.13.1"
+  description: >-
+    Prometheus release to download (GitHub release tag without the
+    leading "v").
+retention:
+  default: "15d"
+  description: >-
+    --storage.tsdb.retention.time value, in Prometheus's own duration
+    syntax (e.g. "15d", "200h").
+scrape_targets:
+  default: ""
+  description: >-
+    Comma-separated host:port targets added as a "toolkit" scrape job,
+    alongside Prometheus's own self-scrape on localhost:9090. Empty = no
+    extra job is added.

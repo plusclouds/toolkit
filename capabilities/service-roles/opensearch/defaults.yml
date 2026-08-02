@@ -1,0 +1,13 @@
+admin_password:
+  default: ""
+  description: >-
+    REQUIRED. Password for the built-in admin user. OpenSearch's security
+    plugin refuses to complete installation without one (must be 8+
+    characters with upper, lower, digit, and special character) - this
+    role fails fast with a clear error if left empty rather than
+    attempting a broken install.
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, sets network.host to 0.0.0.0 (all interfaces) instead of
+    localhost-only.

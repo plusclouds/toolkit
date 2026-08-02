@@ -1,0 +1,106 @@
+---
+- name: Set Alloy role defaults
+  set_fact:
+    alloy_loki_url: "{{ service_roles.alloy.config.loki_url | default('http://localhost:3100/loki/api/v1/push') }}"
+    alloy_log_paths: "{{ service_roles.alloy.config.log_paths | default('/var/log/*.log') }}"
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - apt-transport-https
+      - wget
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Create apt keyrings directory (Debian family)
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download Grafana's official GPG key (Debian family)
+  get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Grafana apt repository (Debian family)
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Alloy (Debian family)
+  apt:
+    name: alloy
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Grafana yum repository (RedHat family)
+  copy:
+    dest: /etc/yum.repos.d/grafana.repo
+    content: |
+      [grafana]
+      name=grafana
+      baseurl=https://rpm.grafana.com
+      repo_gpgcheck=1
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://rpm.grafana.com/gpg.key
+      sslverify=1
+      sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Alloy (RedHat family)
+  dnf:
+    name: alloy
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Configure config.alloy
+  copy:
+    dest: /etc/alloy/config.alloy
+    content: |
+      local.file_match "toolkit" {
+        path_targets = [
+      {% for path in alloy_log_paths.split(',') | map('trim') | reject('equalto', '') | list %}
+          {"__path__" = "{{ path }}"},
+      {% endfor %}
+        ]
+      }
+
+      loki.source.file "toolkit" {
+        targets    = local.file_match.toolkit.targets
+        forward_to = [loki.write.toolkit.receiver]
+      }
+
+      loki.write "toolkit" {
+        endpoint {
+          url = "{{ alloy_loki_url }}"
+        }
+      }
+    mode: "0644"
+  register: alloy_config_changed
+
+- name: Enable and start Alloy service
+  systemd:
+    name: alloy
+    enabled: true
+    state: started
+
+- name: Restart Alloy after config change
+  systemd:
+    name: alloy
+    state: restarted
+  when: alloy_config_changed.changed | default(false)
+
+- name: Debug - Alloy installed
+  debug:
+    msg: "Alloy installed and running (shipping {{ alloy_log_paths }} to {{ alloy_loki_url }})"

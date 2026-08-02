@@ -1,0 +1,6 @@
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, binds MongoDB to 0.0.0.0 (all interfaces) instead of
+    localhost-only. MongoDB has no auth enabled by default, so only set
+    this on a trusted internal network.

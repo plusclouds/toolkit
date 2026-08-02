@@ -1,4 +1,21 @@
-auth_key: ""
-hostname: ""
-advertise_routes: ""
-ephemeral: false
+auth_key:
+  default: ""
+  description: >-
+    Tailscale auth key used to join the tailnet unattended on first boot.
+    Empty = Tailscale installs but stays unjoined (needs a manual
+    `tailscale up` interactive login).
+hostname:
+  default: ""
+  description: >-
+    Device name to advertise on the tailnet. Empty = Tailscale's default
+    (the machine's hostname). Only applied when auth_key is set.
+advertise_routes:
+  default: ""
+  description: >-
+    Comma-separated CIDR routes to advertise (subnet router mode), e.g.
+    "10.0.0.0/24,192.168.1.0/24". Only applied when auth_key is set.
+ephemeral:
+  default: false
+  description: >-
+    If true, passes --ephemeral so the node is removed from the tailnet
+    once it disconnects. Only applied when auth_key is set.

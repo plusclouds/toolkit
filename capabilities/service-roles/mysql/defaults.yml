@@ -1,1 +1,5 @@
-root_password: ""
+root_password:
+  default: ""
+  description: >-
+    Password to set for the MySQL 'root'@'localhost' account. Empty =
+    leave root on passwordless auth_socket auth (fresh-install default).

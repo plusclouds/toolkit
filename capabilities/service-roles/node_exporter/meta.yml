@@ -1,0 +1,6 @@
+description: "Installs node_exporter as a systemd service from its official GitHub release binary, for Prometheus to scrape host metrics."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

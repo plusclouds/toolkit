@@ -1,1 +1,5 @@
-password: ""
+password:
+  default: ""
+  description: >-
+    Password to set for the PostgreSQL postgres superuser. Empty = leave
+    password auth unconfigured (local peer/ident auth only).

@@ -1,0 +1,99 @@
+---
+- name: Set MongoDB role defaults
+  set_fact:
+    mongodb_bind_all_interfaces: "{{ service_roles.mongodb.config.bind_all_interfaces | default(false) }}"
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - gnupg
+      - curl
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download MongoDB's official GPG key (Debian family)
+  get_url:
+    url: https://pgp.mongodb.com/server-8.0.asc
+    dest: /tmp/mongodb-server-8.0.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Dearmor MongoDB's GPG key (Debian family)
+  command:
+    argv:
+      - gpg
+      - --dearmor
+      - --batch
+      - --yes
+      - -o
+      - /usr/share/keyrings/mongodb-server-8.0.gpg
+      - /tmp/mongodb-server-8.0.asc
+  args:
+    creates: /usr/share/keyrings/mongodb-server-8.0.gpg
+  when: ansible_facts.os_family == "Debian"
+
+- name: Set MongoDB apt component fact (Debian family)
+  set_fact:
+    mongodb_apt_component: "{{ 'main' if ansible_facts.distribution == 'Debian' else 'multiverse' }}"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add MongoDB apt repository (Debian family)
+  apt_repository:
+    repo: >-
+      deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg]
+      https://repo.mongodb.org/apt/{{ ansible_facts.distribution | lower }}
+      {{ ansible_facts.distribution_release }}/mongodb-org/8.0 {{ mongodb_apt_component }}
+    state: present
+    filename: mongodb-org-8.0
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install MongoDB (Debian family)
+  apt:
+    name: mongodb-org
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add MongoDB yum repository (RedHat family)
+  copy:
+    dest: /etc/yum.repos.d/mongodb-org-8.0.repo
+    content: |
+      [mongodb-org-8.0]
+      name=MongoDB Repository
+      baseurl=https://repo.mongodb.org/yum/redhat/{{ ansible_facts.distribution_major_version }}/mongodb-org/8.0/{{ ansible_facts.architecture }}/
+      gpgcheck=1
+      enabled=1
+      gpgkey=https://pgp.mongodb.com/server-8.0.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install MongoDB (RedHat family)
+  dnf:
+    name: mongodb-org
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Set MongoDB bind IP
+  lineinfile:
+    path: /etc/mongod.conf
+    regexp: "^(\\s*)bindIp:.*"
+    line: "\\1bindIp: {{ '0.0.0.0' if mongodb_bind_all_interfaces | bool else '127.0.0.1' }}"
+    backrefs: true
+  register: mongodb_config_changed
+
+- name: Enable and start MongoDB service
+  systemd:
+    name: mongod
+    enabled: true
+    state: started
+
+- name: Restart MongoDB after config change
+  systemd:
+    name: mongod
+    state: restarted
+  when: mongodb_config_changed.changed | default(false)
+
+- name: Debug - MongoDB installed
+  debug:
+    msg: "MongoDB installed and running{{ ' (all interfaces)' if mongodb_bind_all_interfaces | bool else ' (localhost-only)' }}"

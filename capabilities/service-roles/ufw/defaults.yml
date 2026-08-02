@@ -1,3 +1,14 @@
-allow_ports: "22"
-default_incoming: "deny"
-default_outgoing: "allow"
+allow_ports:
+  default: "22"
+  description: >-
+    Comma-separated ports (or port/proto entries UFW accepts, e.g. "80",
+    "443/tcp") to allow before UFW is enabled, so a default-deny incoming
+    policy never locks out the only way to reach the host.
+default_incoming:
+  default: "deny"
+  description: >-
+    Default UFW policy for incoming traffic: "allow", "deny", or "reject".
+default_outgoing:
+  default: "allow"
+  description: >-
+    Default UFW policy for outgoing traffic: "allow", "deny", or "reject".

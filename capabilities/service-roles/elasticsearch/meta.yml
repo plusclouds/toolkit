@@ -1,0 +1,6 @@
+description: "Installs and enables Elasticsearch via its official repo, applying the required vm.max_map_count sysctl and optionally setting JVM heap size."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

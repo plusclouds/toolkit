@@ -1,0 +1,6 @@
+description: "Installs and enables Jenkins via its official repo (plus its Java prerequisite), optionally changing the HTTP port."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

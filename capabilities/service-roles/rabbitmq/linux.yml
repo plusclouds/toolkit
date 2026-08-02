@@ -1,0 +1,64 @@
+---
+# Installed from the guest's own distro repos (same approach as
+# capabilities/service-roles/mysql/linux.yml) rather than Team RabbitMQ's
+# apt/yum repos, which now require a separate Erlang repo and key rotation
+# steps that would make this role brittle. This trades version currency
+# for a package/dependency chain the distro guarantees will install cleanly.
+- name: Set RabbitMQ role defaults
+  set_fact:
+    rabbitmq_management_plugin_enabled: "{{ service_roles.rabbitmq.config.management_plugin_enabled | default(true) }}"
+    rabbitmq_admin_user: "{{ service_roles.rabbitmq.config.admin_user | default('') }}"
+    rabbitmq_admin_password: "{{ service_roles.rabbitmq.config.admin_password | default('') }}"
+
+- name: Install RabbitMQ (Debian family)
+  apt:
+    name: rabbitmq-server
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install RabbitMQ (RedHat family)
+  dnf:
+    name: rabbitmq-server
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start RabbitMQ service
+  systemd:
+    name: rabbitmq-server
+    enabled: true
+    state: started
+
+- name: Enable RabbitMQ management plugin
+  command: rabbitmq-plugins enable rabbitmq_management
+  register: rabbitmq_management_result
+  changed_when: "'already enabled' not in rabbitmq_management_result.stdout"
+  when: rabbitmq_management_plugin_enabled | bool
+
+- name: Check existing RabbitMQ users
+  command: rabbitmqctl list_users
+  register: rabbitmq_existing_users
+  changed_when: false
+  when: rabbitmq_admin_user | length > 0
+
+- name: Create RabbitMQ admin user
+  command: "rabbitmqctl add_user {{ rabbitmq_admin_user }} {{ rabbitmq_admin_password }}"
+  when: rabbitmq_admin_user | length > 0 and rabbitmq_admin_user not in rabbitmq_existing_users.stdout
+  no_log: true
+
+- name: Tag RabbitMQ admin user as administrator
+  command: "rabbitmqctl set_user_tags {{ rabbitmq_admin_user }} administrator"
+  when: rabbitmq_admin_user | length > 0
+  changed_when: true
+
+- name: Grant RabbitMQ admin user full permissions
+  command: "rabbitmqctl set_permissions -p / {{ rabbitmq_admin_user }} .* .* .*"
+  when: rabbitmq_admin_user | length > 0
+  changed_when: true
+
+- name: Debug - RabbitMQ installed
+  debug:
+    msg: >-
+      RabbitMQ installed and running{{
+        ' (management UI on :15672)' if rabbitmq_management_plugin_enabled | bool else '' }}{{
+        ' (admin user: ' + rabbitmq_admin_user + ')' if rabbitmq_admin_user | length > 0 else '' }}

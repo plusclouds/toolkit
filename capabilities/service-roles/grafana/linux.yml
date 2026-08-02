@@ -1,0 +1,101 @@
+---
+- name: Set Grafana role defaults
+  set_fact:
+    grafana_admin_password: "{{ service_roles.grafana.config.admin_password | default('') }}"
+    grafana_root_url: "{{ service_roles.grafana.config.root_url | default('') }}"
+
+- name: Install prerequisite packages (Debian family)
+  apt:
+    name:
+      - apt-transport-https
+      - wget
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Create apt keyrings directory (Debian family)
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Download Grafana's official GPG key (Debian family)
+  get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Grafana apt repository (Debian family)
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Grafana (Debian family)
+  apt:
+    name: grafana
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Grafana yum repository (RedHat family)
+  copy:
+    dest: /etc/yum.repos.d/grafana.repo
+    content: |
+      [grafana]
+      name=grafana
+      baseurl=https://rpm.grafana.com
+      repo_gpgcheck=1
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://rpm.grafana.com/gpg.key
+      sslverify=1
+      sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Grafana (RedHat family)
+  dnf:
+    name: grafana
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+# grafana.ini ships with these keys present but commented out under their
+# section headers, so a plain regexp match (no section awareness needed,
+# same trick as capabilities/service-roles/nginx/linux.yml uses for
+# server_name) is enough to override them.
+- name: Set admin password in grafana.ini
+  lineinfile:
+    path: /etc/grafana/grafana.ini
+    regexp: "^;?admin_password\\s*=.*"
+    line: "admin_password = {{ grafana_admin_password }}"
+  when: grafana_admin_password | length > 0
+  register: grafana_config_changed
+
+- name: Set root_url in grafana.ini
+  lineinfile:
+    path: /etc/grafana/grafana.ini
+    regexp: "^;?root_url\\s*=.*"
+    line: "root_url = {{ grafana_root_url }}"
+  when: grafana_root_url | length > 0
+  register: grafana_root_url_changed
+
+- name: Enable and start Grafana service
+  systemd:
+    name: grafana-server
+    enabled: true
+    state: started
+
+- name: Restart Grafana after config change
+  systemd:
+    name: grafana-server
+    state: restarted
+  when: (grafana_config_changed.changed | default(false)) or (grafana_root_url_changed.changed | default(false))
+
+- name: Debug - Grafana installed
+  debug:
+    msg: "Grafana installed and running{{ ' (root_url: ' + grafana_root_url + ')' if grafana_root_url | length > 0 else '' }}"

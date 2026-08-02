@@ -1,1 +1,5 @@
-users: ""
+users:
+  default: ""
+  description: >-
+    Comma-separated OS usernames to add to the docker group (passwordless
+    docker CLI access). Empty = no users added.

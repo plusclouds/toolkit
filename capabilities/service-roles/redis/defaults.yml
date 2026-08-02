@@ -1,2 +1,11 @@
-password: ""
-bind_all_interfaces: false
+password:
+  default: ""
+  description: >-
+    requirepass value. Empty = Redis stays unauthenticated (default
+    config).
+bind_all_interfaces:
+  default: false
+  description: >-
+    If true, binds Redis to 0.0.0.0 (all interfaces) instead of
+    localhost-only. Only set this alongside password - an unauthenticated
+    Redis exposed to the network is an open door.
