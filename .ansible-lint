@@ -1,0 +1,14 @@
+---
+exclude_paths:
+  # include_tasks targets here (change-password.yml, disk-resize-*.yml,
+  # apply-env-vars.yml, apply-ssh-keys.yml, deploy-service.yml,
+  # run-post-boot-script.yml, run-startup-script.yml) are flattened into
+  # this same directory only when the config ISO is built externally - they
+  # don't exist in this repo, so ansible-lint's static include resolution
+  # can never find them and always reports them as missing.
+  - capabilities/apply-configuration/linux.yml
+
+skip_list:
+  # This repo intentionally uses short module names (apt, dnf, set_fact,
+  # include_tasks, ...) throughout every capability instead of FQCN.
+  - fqcn[action-core]

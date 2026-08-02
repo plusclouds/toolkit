@@ -49,4 +49,6 @@
     msg: >-
       {{ 'Tailscale joined the tailnet using the provided auth key.'
           if tailscale_auth_key | length > 0
-          else 'Tailscale installed and running, but not joined to a tailnet - no auth_key was provided in config. Run `tailscale up` manually to authenticate.' }}
+          else 'Tailscale installed and running, but not joined to a tailnet - no '
+               ~ 'auth_key was provided in config. Run `tailscale up` manually to '
+               ~ 'authenticate.' }}

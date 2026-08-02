@@ -22,7 +22,14 @@ jobs:
 
       - name: ansible-lint (playbook capabilities)
         run: |
-          find capabilities agents -name '*.yml' -print0 | xargs -0 --no-run-if-empty ~/.local/bin/ansible-lint
+          # apply-configuration/linux.yml include_tasks's targets (change-password.yml,
+          # disk-resize-*.yml, ...) only exist once an external process flattens the
+          # capability files into one directory at config-ISO build time, so
+          # ansible-lint can never resolve them here - .ansible-lint's exclude_paths
+          # doesn't apply to files passed explicitly on the CLI, so it has to be
+          # filtered out of the file list itself.
+          find capabilities agents -name '*.yml' -not -path 'capabilities/apply-configuration/linux.yml' -print0 \
+            | xargs -0 --no-run-if-empty ~/.local/bin/ansible-lint
 
       - name: PSScriptAnalyzer (PowerShell capabilities)
         shell: pwsh

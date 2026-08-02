@@ -8,7 +8,7 @@
       - lvm2                # pvresize, lvextend
       - xfsprogs            # xfs_growfs (if XFS)
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Detect root filesystem device
   command: findmnt -n -o SOURCE /

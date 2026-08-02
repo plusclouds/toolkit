@@ -39,10 +39,10 @@
 
 - name: Reload systemd daemon
   systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Enable and start plusclouds-agent service
   systemd:
     name: plusclouds-agent
-    enabled: yes
+    enabled: true
     state: started
