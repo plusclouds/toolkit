@@ -1,0 +1,165 @@
+---
+# No apt/dnf package covers every supported distro consistently, so this
+# installs the official GitHub release binary directly, same approach as
+# capabilities/service-roles/nats-server/linux.yml uses for nats-server.
+- name: Set Docker Registry role defaults
+  set_fact:
+    docker_registry_version: "{{ service_roles['docker-registry'].config.version | default('3.1.1') }}"
+    docker_registry_data_dir: "{{ service_roles['docker-registry'].config.data_dir | default('/var/lib/registry') }}"
+    docker_registry_username: "{{ service_roles['docker-registry'].config.username | default('') }}"
+    docker_registry_password: "{{ service_roles['docker-registry'].config.password | default('') }}"
+
+- name: Determine architecture suffix
+  set_fact:
+    docker_registry_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+
+- name: Check if registry binary is already installed
+  stat:
+    path: /usr/local/bin/registry
+  register: docker_registry_binary
+
+- name: Set Docker Registry release URL
+  set_fact:
+    docker_registry_release_url: >-
+      {{ 'https://github.com/distribution/distribution/releases/download/v' ~
+         docker_registry_version ~ '/registry_' ~ docker_registry_version ~
+         '_linux_' ~ docker_registry_arch ~ '.tar.gz' }}
+
+- name: Download and extract Docker Registry release
+  unarchive:
+    src: "{{ docker_registry_release_url }}"
+    dest: /usr/local/bin
+    remote_src: true
+    include: registry
+    mode: "0755"
+  when: not docker_registry_binary.stat.exists
+
+- name: Create docker-registry system group
+  group:
+    name: docker-registry
+    system: true
+    state: present
+
+- name: Create docker-registry system user
+  user:
+    name: docker-registry
+    group: docker-registry
+    system: true
+    shell: /usr/sbin/nologin
+    home: /etc/docker-registry
+    create_home: false
+    state: present
+
+- name: Create Docker Registry config/data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: docker-registry
+    group: docker-registry
+    mode: "0755"
+  loop:
+    - /etc/docker-registry
+    - "{{ docker_registry_data_dir }}"
+
+- name: Install apache2-utils for htpasswd (Debian family)
+  apt:
+    name: apache2-utils
+    state: present
+    update_cache: true
+  when:
+    - ansible_facts.os_family == "Debian"
+    - docker_registry_username | length > 0
+    - docker_registry_password | length > 0
+
+- name: Install httpd-tools for htpasswd (RedHat family)
+  dnf:
+    name: httpd-tools
+    state: present
+  when:
+    - ansible_facts.os_family == "RedHat"
+    - docker_registry_username | length > 0
+    - docker_registry_password | length > 0
+
+# -B forces bcrypt (the only hash the registry's htpasswd auth middleware
+# accepts); -c creates/overwrites the file so re-running this on every boot
+# stays idempotent-by-re-application, same approach as the password-setting
+# tasks in capabilities/service-roles/{mysql,mariadb,postgresql}/linux.yml.
+- name: Write htpasswd file for basic auth
+  command:
+    argv:
+      - htpasswd
+      - -Bbc
+      - /etc/docker-registry/htpasswd
+      - "{{ docker_registry_username }}"
+      - "{{ docker_registry_password }}"
+  when:
+    - docker_registry_username | length > 0
+    - docker_registry_password | length > 0
+  changed_when: true
+  no_log: true
+
+- name: Configure Docker Registry
+  copy:
+    dest: /etc/docker-registry/config.yml
+    content: |
+      version: 0.1
+      log:
+        fields:
+          service: registry
+      storage:
+        filesystem:
+          rootdirectory: {{ docker_registry_data_dir }}
+      http:
+        addr: :5000
+      {% if docker_registry_username | length > 0 and docker_registry_password | length > 0 %}
+      auth:
+        htpasswd:
+          realm: Registry Realm
+          path: /etc/docker-registry/htpasswd
+      {% endif %}
+    owner: docker-registry
+    group: docker-registry
+    mode: "0644"
+  register: docker_registry_config_changed
+
+- name: Install Docker Registry systemd unit
+  copy:
+    dest: /etc/systemd/system/docker-registry.service
+    content: |
+      [Unit]
+      Description=Docker Registry
+      After=network.target
+
+      [Service]
+      User=docker-registry
+      Group=docker-registry
+      ExecStart=/usr/local/bin/registry serve /etc/docker-registry/config.yml
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: docker_registry_unit_changed
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: docker_registry_unit_changed.changed
+
+- name: Enable and start Docker Registry service
+  systemd:
+    name: docker-registry
+    enabled: true
+    state: started
+
+- name: Restart Docker Registry after config change
+  systemd:
+    name: docker-registry
+    state: restarted
+  when: docker_registry_config_changed.changed or docker_registry_unit_changed.changed
+
+- name: Debug - Docker Registry installed
+  debug:
+    msg: >-
+      Docker Registry {{ docker_registry_version }} installed and running on
+      :5000{{ ' (basic auth enabled)' if (docker_registry_username | length > 0 and docker_registry_password | length > 0) else ' (unauthenticated)' }}

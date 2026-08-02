@@ -1,0 +1,6 @@
+description: "Installs a private Docker/OCI image registry as a systemd service from its official release binary, optionally requiring HTTP basic auth."
+supported_os:
+  - "Ubuntu 22.04"
+  - "Ubuntu 24.04"
+  - "Debian 12"
+  - "AlmaLinux"

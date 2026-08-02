@@ -68,6 +68,7 @@ Optional daemons a VM can opt into via `service_roles.<name>.config` — see `ca
 | `bind9` | Installs and enables BIND9 as a caching/forwarding DNS resolver, configuring upstream forwarders and the query allowlist. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `kafka` | Installs Apache Kafka (KRaft mode, no ZooKeeper) from its official release tarball, as a single combined broker+controller node. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `keycloak` | Installs Keycloak from its official release tarball. Runs in dev mode unless db_url is set, which switches to optimized production mode. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `docker-registry` | Installs a private Docker/OCI image registry from its official release binary, optionally requiring HTTP basic auth. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 
 ## Consuming this repo
 

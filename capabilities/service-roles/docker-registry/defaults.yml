@@ -1,0 +1,21 @@
+version:
+  default: "3.1.1"
+  description: >-
+    Docker Registry (distribution/distribution) release to download
+    (GitHub release tag without the leading "v").
+data_dir:
+  default: "/var/lib/registry"
+  description: >-
+    Filesystem path where image layers/blobs are stored.
+username:
+  default: ""
+  description: >-
+    HTTP basic-auth username required to push/pull. Only takes effect
+    when paired with password; empty = registry runs unauthenticated.
+password:
+  default: ""
+  description: >-
+    HTTP basic-auth password for username, hashed into an htpasswd file
+    on the guest - never stored in the registry config itself. Only
+    takes effect when paired with username; empty = registry runs
+    unauthenticated.
