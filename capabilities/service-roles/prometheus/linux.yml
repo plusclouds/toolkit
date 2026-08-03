@@ -69,18 +69,6 @@
     - promtool
   when: not prometheus_binary.stat.exists
 
-- name: Install Prometheus console templates
-  copy:
-    src: "/opt/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}/{{ item }}"
-    dest: "/etc/prometheus/"
-    remote_src: true
-    owner: prometheus
-    group: prometheus
-  loop:
-    - consoles
-    - console_libraries
-  when: not prometheus_binary.stat.exists
-
 - name: Remove extracted release directory
   file:
     path: "/opt/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}"
@@ -122,9 +110,7 @@
       ExecStart=/usr/local/bin/prometheus \
         --config.file=/etc/prometheus/prometheus.yml \
         --storage.tsdb.path=/var/lib/prometheus \
-        --storage.tsdb.retention.time={{ prometheus_retention }} \
-        --web.console.templates=/etc/prometheus/consoles \
-        --web.console.libraries=/etc/prometheus/console_libraries
+        --storage.tsdb.retention.time={{ prometheus_retention }}
       Restart=on-failure
 
       [Install]

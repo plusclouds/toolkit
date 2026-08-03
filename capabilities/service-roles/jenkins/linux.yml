@@ -56,13 +56,32 @@
     state: present
   when: ansible_facts.os_family == "RedHat"
 
+# /etc/default/jenkins' HTTP_PORT is only read by the legacy init.d script -
+# the package's systemd unit hardcodes JENKINS_PORT via its own inline
+# Environment= line and has no EnvironmentFile=, so editing that file has no
+# effect on the actually-running service. A drop-in override is what's
+# needed to change the port under systemd.
+- name: Create Jenkins systemd drop-in directory (Debian family)
+  file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    mode: "0755"
+  when: ansible_facts.os_family == "Debian"
+
 - name: Set Jenkins HTTP port (Debian family)
-  lineinfile:
-    path: /etc/default/jenkins
-    regexp: "^HTTP_PORT=.*"
-    line: "HTTP_PORT={{ jenkins_http_port }}"
+  copy:
+    dest: /etc/systemd/system/jenkins.service.d/toolkit-http-port.conf
+    content: |
+      [Service]
+      Environment="JENKINS_PORT={{ jenkins_http_port }}"
+    mode: "0644"
   when: ansible_facts.os_family == "Debian"
   register: jenkins_config_changed_debian
+
+- name: Reload systemd daemon after Jenkins port override (Debian family)
+  systemd:
+    daemon_reload: true
+  when: jenkins_config_changed_debian.changed | default(false)
 
 - name: Set Jenkins HTTP port (RedHat family)
   lineinfile:

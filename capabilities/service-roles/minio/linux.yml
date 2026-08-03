@@ -26,6 +26,24 @@
     disable_gpg_check: true
   when: ansible_facts.os_family == "RedHat"
 
+# Neither the .deb nor the .rpm postinst creates this account - MinIO's own
+# docs have it as a separate manual step, so without it the directory/env
+# tasks below fail (unknown user) and the service never starts.
+- name: Create minio-user system group
+  group:
+    name: minio-user
+    system: true
+    state: present
+
+- name: Create minio-user system user
+  user:
+    name: minio-user
+    group: minio-user
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+    state: present
+
 - name: Create MinIO data volume directory
   file:
     path: "{{ minio_volume_path }}"

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-02T16:23:25Z",
+  "generated_at": "2026-08-03T07:44:40Z",
   "files": {
     "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
@@ -71,7 +71,7 @@
     "capabilities/service-roles/influxdb/linux.yml": {"sha256": "ba4713829dff65eb7780adeb943a93892999044f8051d95d53efd7cdd73224a6", "size": 2779},
     "capabilities/service-roles/influxdb/meta.yml": {"sha256": "fa66a672ac612195ce407aa2e110a50663e41723a51f3b188e761ef5fc764501", "size": 194},
     "capabilities/service-roles/jenkins/defaults.yml": {"sha256": "3a3662c2b5f42ba03aec20d32b45e4791c584cdff455f8e91525d5189a760437", "size": 87},
-    "capabilities/service-roles/jenkins/linux.yml": {"sha256": "71a5d65992ece772159d11f8667ebd1cbb69bc04218329cacaa1b0aa9280b0e0", "size": 2705},
+    "capabilities/service-roles/jenkins/linux.yml": {"sha256": "8b8a4096527b5467c9d83fccd724ad44da5f4d8613bbcdd7398d6d715fd63336", "size": 3486},
     "capabilities/service-roles/jenkins/meta.yml": {"sha256": "baa7bb935973adc530e70f6864a2f0498490b7092d7c37d556c8abf317d86f13", "size": 215},
     "capabilities/service-roles/kafka/defaults.yml": {"sha256": "7635ff787a1dc11a14da3d0af5a74186814cc914e8e77643892639d8905d7b1a", "size": 330},
     "capabilities/service-roles/kafka/linux.yml": {"sha256": "c729eb9ed8a6b9ad33efed7786d279c9320d608c90e2bdb381cfa16a81466cbb", "size": 4774},
@@ -86,7 +86,7 @@
     "capabilities/service-roles/mariadb/linux.yml": {"sha256": "8a1a055b19b63eb46c2acddd620d9edfe84fd7421b0db8c6510bd6e6ac8a04ce", "size": 1499},
     "capabilities/service-roles/mariadb/meta.yml": {"sha256": "16e024b7406d789c7e8aace54d55a787cfec6ec00a8a0fc404c7559703692c26", "size": 208},
     "capabilities/service-roles/minio/defaults.yml": {"sha256": "8068a5e00c22c5965d235d9e86d76ba138545d3c69e430be021c4408c9baa73a", "size": 514},
-    "capabilities/service-roles/minio/linux.yml": {"sha256": "4bd0b3d267fd2774728a0b7297702eb9618adeff04e36ab08fde54ccf37bf611", "size": 2362},
+    "capabilities/service-roles/minio/linux.yml": {"sha256": "a76335d8d5a66515ef036404ae2210261cc9cd61349feaf38ff1a69bcebb193c", "size": 2860},
     "capabilities/service-roles/minio/meta.yml": {"sha256": "ec1f3840ecadac4a92df96a1e2454ca92cff358270bcd7f0691c29a354c01c27", "size": 214},
     "capabilities/service-roles/mongodb/defaults.yml": {"sha256": "a4917b745efae13a1ccd61cd6bc0a8f4b74091c35fb0e1c0d298fd1fa02090eb", "size": 234},
     "capabilities/service-roles/mongodb/linux.yml": {"sha256": "9c0385e5b291c546588506809a337863ee5f2c6d1e487b4141739d484a5a8ac4", "size": 2976},
@@ -116,7 +116,7 @@
     "capabilities/service-roles/postgresql/linux.yml": {"sha256": "6a0a913eace7f50c5ed73ca3d7c94e717261e6d7805ce6f7092d2c1c88f48b08", "size": 1851},
     "capabilities/service-roles/postgresql/meta.yml": {"sha256": "a4b2d9327db3333fb834ddc067f33aa7df5022a98c1bbfbd8be1f3ba877b893c", "size": 219},
     "capabilities/service-roles/prometheus/defaults.yml": {"sha256": "68014840b8e48575a103ceb321d10db005a76d1a5ac3f927b2df0e1ae46c06ed", "size": 497},
-    "capabilities/service-roles/prometheus/linux.yml": {"sha256": "32c0b9638cca95936162ed64b8b92cab90b58a8a13f99f4a4689c324c338754e", "size": 4643},
+    "capabilities/service-roles/prometheus/linux.yml": {"sha256": "27e097e0d174870e628b6ac61f23c078799d1cf37070445e66b8b29971355e58", "size": 4188},
     "capabilities/service-roles/prometheus/meta.yml": {"sha256": "f8b8493f4ecdd75c411b6f1a06c7176eb23a7268c4063ce142135a88fbc29895", "size": 238},
     "capabilities/service-roles/rabbitmq/defaults.yml": {"sha256": "b273952e8667c2583162fbdea93f2260fbc89fd9d24ce83bba174a79146bbdf2", "size": 519},
     "capabilities/service-roles/rabbitmq/linux.yml": {"sha256": "a77c002180aef7e8311ccc9d868cacd219a14452a689ea056d6ac6a803fab3a7", "size": 2490},
