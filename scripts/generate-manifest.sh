@@ -25,7 +25,7 @@ while IFS= read -r -d '' f; do
   first=0
   printf '    "%s": {"sha256": "%s", "size": %s}' "$rel" "$sha" "$size" >> "$tmp"
   echo "${sha}  ${rel}" >> checksums.sha256
-done < <(find capabilities agents -type f -print0 | sort -z)
+done < <(find capabilities agents -type f -print0 | LC_ALL=C sort -z)
 
 echo "" >> "$tmp"
 echo "  }" >> "$tmp"

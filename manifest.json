@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03T07:44:40Z",
+  "generated_at": "2026-08-03T08:04:27Z",
   "files": {
     "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
@@ -46,12 +46,12 @@
     "capabilities/service-roles/coredns/defaults.yml": {"sha256": "e4a2ffa884d395cf571fc13c189b51235f19d807c5ddf13c0c5449c4eeac2fe8", "size": 342},
     "capabilities/service-roles/coredns/linux.yml": {"sha256": "eeba07a92c2bf686e3b4cb000c83426ce4f3ff8a820178aa15c368d30b09ba68", "size": 3082},
     "capabilities/service-roles/coredns/meta.yml": {"sha256": "2b1e778f1652eb43e6ce2bb3332e87b5271937f0610b338d38d82768426657c9", "size": 233},
-    "capabilities/service-roles/docker/defaults.yml": {"sha256": "c592bc052b2ea042d6ca15402845ad44df9fb8390026c88bfab7cec31c3311db", "size": 161},
-    "capabilities/service-roles/docker/linux.yml": {"sha256": "81e5a7d0313d09eb4bc677e2cb96181606bb9233dedd66009df5ec7dbf86fee3", "size": 2644},
-    "capabilities/service-roles/docker/meta.yml": {"sha256": "c574197e9ad3481e06985e8afc01164d9594965362e301aee22c08b0325b8fca", "size": 224},
     "capabilities/service-roles/docker-registry/defaults.yml": {"sha256": "4802ca09cfedd60aae775a1b97ba5750d1250d19a2ee144de09f59369c9210e4", "size": 731},
     "capabilities/service-roles/docker-registry/linux.yml": {"sha256": "3b152171237541c5a1c1672212f92ccbe4613251aa3275e13776713795bec51c", "size": 5121},
     "capabilities/service-roles/docker-registry/meta.yml": {"sha256": "ec32eee0d7b0b79866b10cf72b37a12626176458a6cb0d2fcc3b2723caa2afb1", "size": 237},
+    "capabilities/service-roles/docker/defaults.yml": {"sha256": "c592bc052b2ea042d6ca15402845ad44df9fb8390026c88bfab7cec31c3311db", "size": 161},
+    "capabilities/service-roles/docker/linux.yml": {"sha256": "81e5a7d0313d09eb4bc677e2cb96181606bb9233dedd66009df5ec7dbf86fee3", "size": 2644},
+    "capabilities/service-roles/docker/meta.yml": {"sha256": "c574197e9ad3481e06985e8afc01164d9594965362e301aee22c08b0325b8fca", "size": 224},
     "capabilities/service-roles/elasticsearch/defaults.yml": {"sha256": "eab2bab86163250f02e18bc66912cff9ded8398705b3fef9247cedada68ada08", "size": 351},
     "capabilities/service-roles/elasticsearch/linux.yml": {"sha256": "9f9b47a24d19e279d9535e4d66068bfdae320c5024373126279271fd302f1d53", "size": 3588},
     "capabilities/service-roles/elasticsearch/meta.yml": {"sha256": "2b5192c8756b8abba32365729574275c0aeccaf0e126348c60f749ef9ec21af6", "size": 241},
