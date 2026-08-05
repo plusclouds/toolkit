@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-08-05T06:13:46Z",
+  "generated_at": "2026-08-05T12:47:54Z",
   "files": {
     "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
     "agents/vm-service/agent.yaml": {"sha256": "59e6e7806dd415e0af3c767d5ed3c664a5f6177dbe5a0e408cd9bbf095140cd1", "size": 2726},
     "agents/vm-service/cleanup.sh": {"sha256": "17e55e6851ad47b57e3ce1df834e9edcaa1f8141d78e22862f95bb7e22164cda", "size": 352},
-    "agents/vm-service/deploy-service.yml": {"sha256": "89e50c99ae00ad85966191d24dd7e4450b7326323f495c9048f675d2d5c6d117", "size": 1535},
+    "agents/vm-service/deploy-service.yml": {"sha256": "60c986454f72b42645254e7b936641fe52f1f3578362999d1baa1d39dc45bf40", "size": 1692},
     "agents/vm-service/how-to-deploy-service.md": {"sha256": "ea515c955dfd07eb461b30ab250b7811e27b48f6d8e90279af6399818c4962a8", "size": 240},
     "agents/vm-service/install.sh": {"sha256": "67595ae94474f2d339cdeb843199e24f43706ae15804b7dfdce3aeb85dc3d994", "size": 1585},
-    "agents/vm-service/plusclouds-agent.service": {"sha256": "2d706a437ac0d35b68bff7fc3111789bf8403e41b3e94a7918071afa56aa0241", "size": 905},
+    "agents/vm-service/plusclouds-agent.service": {"sha256": "279f54f1cc1c2afdc880198f96d355d1eef66676e62af821a6e3815f70de47f7", "size": 1390},
     "agents/vm-service/plusclouds.service": {"sha256": "33ff52e3656af5744ddf7f495b98baa1621df6b5bd73cd223b2a175086206321", "size": 198},
     "agents/vm-service/plusclouds.sh": {"sha256": "c485598cacd481e24f876f40600fe5577305954a23a8a4b7ad531e640d76bd5e", "size": 1189},
     "agents/vm-service/startup.sh": {"sha256": "3dcc370977625cbfe230dec7d90a3fdeb820f4a193d1a29b4f5e8f4c1af942f0", "size": 1250},

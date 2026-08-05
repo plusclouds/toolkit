@@ -16,8 +16,14 @@
     state: directory
     mode: '0755'
 
-- name: Move plusclouds binary to /usr/local/bin/plusclouds
-  command: mv plusclouds.service /usr/local/bin/plusclouds
+- name: Ensure /media/plusclouds-config directory exists
+  file:
+    path: /media/plusclouds-config
+    state: directory
+    mode: '0755'
+
+- name: Move plusclouds binary to /usr/local/bin/plusclouds-agent
+  command: mv plusclouds.service /usr/local/bin/plusclouds-agent
   args:
     chdir: "{{ package_dir | default(playbook_dir) }}"
 
@@ -34,7 +40,7 @@
   command: "restorecon -v {{ item }}"
   loop:
     - /etc/systemd/system/plusclouds-agent.service
-    - /usr/local/bin/plusclouds
+    - /usr/local/bin/plusclouds-agent
   when: ansible_facts.os_family == "RedHat"
 
 - name: Reload systemd daemon
