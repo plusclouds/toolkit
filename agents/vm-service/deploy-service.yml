@@ -27,6 +27,20 @@
   args:
     chdir: "{{ package_dir | default(playbook_dir) }}"
 
+# `mv` keeps the source mode. The binary arrives from the config ISO copy as
+# 0644, so systemd fails every start with status=203/EXEC. Set the mode
+# explicitly instead of relying on the source file's bit.
+- name: Ensure plusclouds-agent binary is executable
+  file:
+    path: /usr/local/bin/plusclouds-agent
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Verify plusclouds-agent binary is executable
+  command: test -x /usr/local/bin/plusclouds-agent
+  changed_when: false
+
 - name: Move plusclouds-agent.service to /etc/systemd/system
   command: mv plusclouds-agent.service /etc/systemd/system/plusclouds-agent.service
   args:
