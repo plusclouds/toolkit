@@ -1,0 +1,147 @@
+---
+# Installs the Stash backup agent (plusclouds/backup.agent) and registers the
+# machine to an S3 bucket.
+#
+# This file is included on every boot, so every task has to be safe to repeat:
+# the binary is only downloaded when it is missing or is not the pinned build,
+# and registration only happens while the machine has no Stash config yet.
+#
+# Two values in the role config are not customer keys and are therefore not
+# listed in defaults.yml: `registration_token` and `register_endpoint`. The
+# platform adds them when it builds this machine's metadata, after resolving
+# the customer's `bucket` inside their own account. The token is one-time and
+# short-lived. Without them Stash is installed and left unregistered.
+#
+# Nothing here may fail the boot playbook: the rest of first boot (agent
+# deployment, post-boot script) runs after the service roles. Any failure ends
+# up in the rescue section at the bottom.
+- name: Set Stash role defaults
+  set_fact:
+    # The release and its SHA-256 are pinned together. To move to a newer
+    # Stash, change both, taking the checksum of `stash.linux` from the
+    # release page.
+    stash_version: "3.2.4"
+    stash_sha256: "92bc9f59010be887c99cbc8ce1838da270c661af2e348007773a51dc56606774"
+    stash_bucket: "{{ service_roles.stash.config.bucket | default('') }}"
+    stash_registration_token: "{{ service_roles.stash.config.registration_token | default('') }}"
+    stash_register_endpoint: "{{ service_roles.stash.config.register_endpoint | default('') }}"
+    stash_registered_now: false
+  no_log: true
+
+- name: Install and register Stash
+  block:
+    # Stash publishes a single Linux build, for amd64.
+    - name: Stop on architectures Stash has no build for
+      debug:
+        msg: >-
+          Stash is not installed: it is only built for x86_64 and this
+          machine is {{ ansible_facts.architecture }}.
+      when: ansible_facts.architecture != "x86_64"
+
+    - name: Install Stash on a supported architecture
+      when: ansible_facts.architecture == "x86_64"
+      block:
+        - name: Check whether this machine is already registered
+          stat:
+            path: /etc/plusclouds/stash.yaml
+          register: stash_config_before
+
+        # get_url leaves an existing file alone when it already matches the
+        # checksum, and never puts a download in place that does not match.
+        - name: Download the pinned Stash binary
+          get_url:
+            url: "https://github.com/plusclouds/backup.agent/releases/download/v{{ stash_version }}/stash.linux"
+            dest: /usr/local/bin/stash
+            checksum: "sha256:{{ stash_sha256 }}"
+            owner: root
+            group: root
+            mode: "0755"
+            timeout: 120
+          register: stash_binary
+
+        # A freshly written file under /usr/local/bin can carry the wrong
+        # SELinux context, in which case systemd cannot execute it.
+        - name: Restore SELinux context for the Stash binary (RedHat family)
+          command: restorecon -v /usr/local/bin/stash
+          when:
+            - ansible_facts.os_family == "RedHat"
+            - stash_binary.changed
+          changed_when: true
+
+        - name: Check for the Stash systemd unit
+          stat:
+            path: /etc/systemd/system/stash.service
+          register: stash_unit
+
+        - name: Restart Stash after a binary upgrade
+          systemd:
+            name: stash
+            state: restarted
+          when:
+            - stash_binary.changed
+            - stash_config_before.stat.exists
+            - stash_unit.stat.exists
+
+        # The token goes in through the environment, not the command line,
+        # which every local user could read. On success `stash register`
+        # prints the agent API key and the S3 secret key, so the result is
+        # never logged. It also installs and starts the systemd unit itself.
+        - name: Register this machine with the platform
+          command:
+            argv:
+              - /usr/local/bin/stash
+              - register
+              - --endpoint
+              - "{{ stash_register_endpoint }}"
+          environment:
+            STASH_REGISTER_TOKEN: "{{ stash_registration_token }}"
+          register: stash_register
+          when:
+            - not stash_config_before.stat.exists
+            - stash_registration_token | length > 0
+            - stash_register_endpoint | length > 0
+          changed_when: stash_register.rc == 0
+          failed_when: false
+          no_log: true
+
+        - name: Record whether registration succeeded
+          set_fact:
+            stash_registered_now: "{{ (stash_register.rc | default(1)) == 0 }}"
+
+        # Covers a machine that was registered by hand, or before Stash
+        # installed its own service.
+        - name: Install the Stash service on an already registered machine
+          command: /usr/local/bin/stash service install
+          when:
+            - stash_config_before.stat.exists
+            - not stash_unit.stat.exists
+          changed_when: true
+
+        - name: Debug - Stash status
+          debug:
+            msg: >-
+              {%- if stash_config_before.stat.exists -%}
+              Stash {{ stash_version }} is installed and this machine was already registered.
+              {%- elif stash_registered_now | bool -%}
+              Stash {{ stash_version }} installed and registered{{ ' to bucket ' ~ stash_bucket if stash_bucket | length > 0 else '' }}.
+              {%- elif stash_registration_token | length > 0 -%}
+              Stash {{ stash_version }} installed, but registration failed. The
+              registration token is one-time and short-lived: restart the machine
+              from the panel to get a new one.
+              {%- elif stash_bucket | length > 0 -%}
+              Stash {{ stash_version }} installed, but not registered: the platform
+              supplied no registration token for bucket {{ stash_bucket }}. Check
+              that the bucket exists in this account.
+              {%- else -%}
+              Stash {{ stash_version }} installed, but not registered: no bucket was
+              set in the role config. Register by hand with `stash register`.
+              {%- endif -%}
+
+  rescue:
+    # Only the task name is shown: a failed task's result can hold the
+    # registration token.
+    - name: Debug - Stash role failed
+      debug:
+        msg: >-
+          The Stash role did not complete (failed at: {{ ansible_failed_task.name | default('unknown task') }}).
+          The rest of the boot configuration continues.

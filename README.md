@@ -43,6 +43,7 @@ Optional daemons a VM can opt into via `service_roles.<name>.config` — see `ca
 | `traefik` | Installs Traefik as a systemd service from its official release binary, optionally enabling the dashboard and Let's Encrypt via ACME. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `docker` | Installs Docker Engine from its official repo, optionally adding users to the `docker` group. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `tailscale` | Installs Tailscale, optionally joining your tailnet automatically when an auth key is provided. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
+| `stash` | Installs the Stash backup agent from its checksum-pinned release binary and registers the machine to one of the customer's S3 buckets. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux (x86_64 only) |
 | `fail2ban` | Installs and enables Fail2ban, optionally overriding the default ban time and retry threshold. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |
 | `ufw` | Installs and enables UFW, applying default incoming/outgoing policies and a port allowlist before enabling. | Ubuntu 22.04/24.04, Debian 12 (not packaged for RedHat family) |
 | `grafana` | Installs and enables Grafana from its official repo, optionally setting the admin password and root URL. | Ubuntu 22.04/24.04, Debian 12, AlmaLinux |

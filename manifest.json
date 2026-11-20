@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-10T19:53:45Z",
+  "generated_at": "2026-11-20T07:31:06Z",
   "files": {
-    "agents/backup-agent/README.md": {"sha256": "458dddd48ebfe444988be472725f4f040272b667d2ddc109b4150f53179de6aa", "size": 348},
+    "agents/backup-agent/README.md": {"sha256": "18e6c912255647aa52fa804ff6d6c2a7eba278da4910b3ddefa137fda4c79fc1", "size": 1901},
     "agents/storaged/README.md": {"sha256": "daec070d647ec6cd3df8737d227c968dc54dab4a7fc725ae182f604b24081eb3", "size": 395},
     "agents/vm-service/agent.yaml": {"sha256": "59e6e7806dd415e0af3c767d5ed3c664a5f6177dbe5a0e408cd9bbf095140cd1", "size": 2726},
     "agents/vm-service/cleanup.sh": {"sha256": "17e55e6851ad47b57e3ce1df834e9edcaa1f8141d78e22862f95bb7e22164cda", "size": 352},
@@ -124,6 +124,9 @@
     "capabilities/service-roles/redis/defaults.yml": {"sha256": "baa771754d48ad67c1844550c66542fb86c3a2ec8f7acb1f32c2f3ba015e6085", "size": 367},
     "capabilities/service-roles/redis/linux.yml": {"sha256": "83bc1792f8a198456b8568be6dd783453e00647501df1584df288fd820c157b3", "size": 2152},
     "capabilities/service-roles/redis/meta.yml": {"sha256": "427e449622ffc8cfd71b13d05ffb78a17b7ab11ca1f3eb567bb57948cca30f37", "size": 229},
+    "capabilities/service-roles/stash/defaults.yml": {"sha256": "fefb04422f2d673e55b5a973599ef0b59b44e57333bd16b37c7a427c90bb42eb", "size": 213},
+    "capabilities/service-roles/stash/linux.yml": {"sha256": "0a5a462d751d2ecf27cfe10b27c7f8baba29f026d068b8710e5fb12b7176ebd2", "size": 6550},
+    "capabilities/service-roles/stash/meta.yml": {"sha256": "d2992fef02d82b8cfea095c2757b26b7a902a680a402b27c67b67cf41757b73a", "size": 233},
     "capabilities/service-roles/tailscale/defaults.yml": {"sha256": "5815ac7c97ccdb35ce1cddcb0598fffb87e1051ecf41f9d706096cf8aeb2f5cb", "size": 770},
     "capabilities/service-roles/tailscale/linux.yml": {"sha256": "3708f6c79ea11e95679570dce0c1b2db7d50a7c3b7d379b999324ca39fc55aa8", "size": 2191},
     "capabilities/service-roles/tailscale/meta.yml": {"sha256": "83b497c159928099e78fe26926768c69eb8aa993638de59542ac604a31ab0547", "size": 207},
