@@ -1,0 +1,6 @@
+bucket:
+  default: ""
+  description: >-
+    Name of the S3 bucket in your account that this machine backs up to.
+    Empty = Stash is installed but left unregistered (register it later
+    with `stash register`).
